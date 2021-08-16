@@ -56,19 +56,13 @@ def remove_html_tags_newline(text):
 mcf_df = reading_selecting_data(
     "..\Data\Raw\WGS_Dataset_Part_1_JobInfo.csv", "title", "description", "ssoc_code")
 
-mcf_df
-
 # Apply removal across rows along both the Title and Description
-
 mcf_df['Title'] = mcf_df['Title'].apply(remove_html_tags_newline)
 
-mcf_df['Description'] = mcf_df['Description'].apply(remove_html_tags_newline)
+mcf_df['Description no HTML'] = mcf_df['Description'].apply(remove_html_tags_newline)
 
 # Loding spacy, pipline for further cleaning
-
 nlp = spacy.load('en_core_web_lg', disable=['tagger', 'parser', 'ner'])
-
-mcf_df = mcf_df.head()  # remove later
 
 
 def to_doc(text):
@@ -86,11 +80,10 @@ def lemmatize_remove_stop(doc):
 
 
 # create documents for all tuples of tokens
-docs = list(map(to_doc, mcf_df.Description))
+docs = list(map(to_doc, mcf_df['Description no HTML']))
 
+# apply stop word removal and lemmatization to each text within Description
+mcf_df['Lem Desc rm stop words tokenised'] = list(map(lemmatize_remove_stop, docs))
 
-# apply stop word removal and lemmatization to all
-mcf_df['Lem Desc rm stop words'] = list(map(lemmatize_remove_stop, docs))
-
-mcf_df['Description'][0]
-mcf_df['Lem Desc rm stop words'][0]
+# Exploring extraction of job description using HTML tags
+mcf_df.to_csv("..\Data\Processed\WGS_Dataset_JobInfo_precleaned.csv", index=False)
