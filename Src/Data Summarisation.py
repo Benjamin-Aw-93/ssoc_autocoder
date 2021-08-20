@@ -13,6 +13,20 @@ mcf_df.head()
 mcf_df = mcf_df[["Title", "Description", "SSOC"]].sample(frac=0.1)
 
 
+# Create a class that takes in the dataset and the cleaning function
+# Captures all the necessary information:
+# 1. Number of entries filled
+# 2. Take the top n as a sample to be returned
+
+class extraction_text:
+    def __init__(self, df_text, cleaning_fn):
+        self.text = df_text
+        self.extracted_text = self.text.apply(extracting_job_desc_naive)
+        self.percentage_completed = sum(1 if isinstance(
+            text, list) else 0 for text in self.extracted_text) / self.extracted_text.size
+        self.subsample = df_text.head(100)
+
+
 # Naive way of extracting
 def extracting_job_desc_naive(text):
     '''
@@ -31,6 +45,4 @@ def extracting_job_desc_naive(text):
     return pattern.findall(text)
 
 
-mcf_df['Description naive'] = mcf_df['Description'].apply(extracting_job_desc_naive)
-
-mcf_df['Count'] =
+naive_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_naive)
