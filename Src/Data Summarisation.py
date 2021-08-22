@@ -45,4 +45,9 @@ def extracting_job_desc_naive(text):
     return pattern.findall(text)
 
 
-naive_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_naive)
+def main():
+    naive_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_naive)
+
+
+if __name__ == "__main__":
+    main()
