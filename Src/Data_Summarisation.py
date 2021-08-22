@@ -22,9 +22,10 @@ mcf_df = mcf_df[["Title", "Description", "SSOC"]].sample(frac=0.1)
 class extraction_text:
     def __init__(self, df_text, cleaning_fn):
         self.text = df_text
-        self.extracted_text = self.text.apply(extracting_job_desc_naive)
-        self.percentage_completed = sum(1 if not bool(text), list) else 0 for text in self.extracted_text) / self.extracted_text.size
-        self.subsample=df_text.head(100)
+        self.extracted_text = self.text.apply(cleaning_fn)
+        self.percentage_completed = sum(1 if not bool(
+            text) else 0 for text in self.extracted_text) / self.extracted_text.size
+        self.subsample = df_text.head(100)
 
 # Naive way of extracting
 
@@ -42,7 +43,7 @@ def extracting_job_desc_naive(text):
 
     '''
 
-    pattern=re.compile('(?<=<li>).*?(?=</li>)')
+    pattern = re.compile('(?<=<li>).*?(?=</li>)')
     return pattern.findall(text)
 
 
@@ -60,8 +61,10 @@ def extracting_job_desc_named(text):
         list_extracted_text(text) : Extracted text
 
     '''
-    lst_words=["Descriptions", "Competencies", "Description",
-                 "Competencie", "Responsibility", "Responsibilities", "Duty", "Duties"]
+    lst_words = ["Descriptions", "Description", "Competencies", "Competency",
+                 "Responsibility", "Responsibilities", "Duty", "Duties",
+                 "Outlines", "Outline", "Role", "Roles",
+                 "Responsibility", "Responsibilities"]
 
     output = []
 
@@ -84,7 +87,9 @@ extracting_job_desc_named(txt)
 
 def main():
     naive_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_naive)
+    print(naive_extraction_obj.percentage_completed)
     named_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_named)
+    print(named_extraction_obj.percentage_completed)
 
 
 if __name__ == "__main__":
