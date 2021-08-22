@@ -23,9 +23,8 @@ class extraction_text:
     def __init__(self, df_text, cleaning_fn):
         self.text = df_text
         self.extracted_text = self.text.apply(extracting_job_desc_naive)
-        self.percentage_completed = sum(1 if isinstance(
-            text, list) else 0 for text in self.extracted_text) / self.extracted_text.size
-        self.subsample = df_text.head(100)
+        self.percentage_completed = sum(1 if not bool(text), list) else 0 for text in self.extracted_text) / self.extracted_text.size
+        self.subsample=df_text.head(100)
 
 # Naive way of extracting
 
@@ -43,7 +42,7 @@ def extracting_job_desc_naive(text):
 
     '''
 
-    pattern = re.compile('(?<=<li>).*?(?=</li>)')
+    pattern=re.compile('(?<=<li>).*?(?=</li>)')
     return pattern.findall(text)
 
 
@@ -61,7 +60,7 @@ def extracting_job_desc_named(text):
         list_extracted_text(text) : Extracted text
 
     '''
-    lst_words = ["Descriptions", "Competencies", "Description",
+    lst_words=["Descriptions", "Competencies", "Description",
                  "Competencie", "Responsibility", "Responsibilities", "Duty", "Duties"]
 
     output = []
