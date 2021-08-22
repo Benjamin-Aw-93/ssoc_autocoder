@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 import re
+from Data_Cleaning import remove_html_tags_newline
 
 # Try to get summarised data out using HTML tags
 
@@ -26,27 +27,9 @@ class extraction_text:
             text, list) else 0 for text in self.extracted_text) / self.extracted_text.size
         self.subsample = df_text.head(100)
 
-
-# Obtained from Data Cleaning.py, write main function for that, import and remove
-def remove_html_tags_newline(text):
-    '''
-
-    Remove html tags from a string with generic regex
-
-    Parameters:
-        text (str): Selected text
-
-    Returns:
-        cleaned_text(text) : Text with html tags and new line  removed
-
-    '''
-
-    clean = re.compile('<.*?>')
-    newline_clean = re.compile('\n')
-    return re.sub(newline_clean, ' ', re.sub(clean, '', text)).lower()
-
-
 # Naive way of extracting
+
+
 def extracting_job_desc_naive(text):
     '''
 
