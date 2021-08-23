@@ -21,9 +21,10 @@ def reading_selecting_data(link, *colnames):
     '''
     data = pd.read_csv(link)
     data = data[list(colnames)]
-    dict_map = {colnames[0]: 'Title',
-                colnames[1]: 'Description',
-                colnames[2]: 'SSOC'}
+    dict_map = {colnames[0]: 'Job_ID',
+                colnames[1]: 'Title',
+                colnames[2]: 'Description',
+                colnames[3]: 'SSOC'}
     data.rename(columns=dict_map, inplace=True)
 
     data['SSOC'] = pd.to_numeric(data['SSOC'], errors='coerce')
@@ -55,7 +56,7 @@ def remove_html_tags_newline(text):
 
 def main():
     mcf_df = reading_selecting_data(
-        "..\Data\Raw\WGS_Dataset_Part_1_JobInfo.csv", "title", "description", "ssoc_code")
+        "..\Data\Raw\WGS_Dataset_Part_1_JobInfo.csv", "job_post_id", "title", "description", "ssoc_code")
 
     # Apply removal across rows along both the Title and Description
     mcf_df['Title'] = mcf_df['Title'].apply(remove_html_tags_newline)
