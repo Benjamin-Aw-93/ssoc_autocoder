@@ -86,10 +86,29 @@ extracting_job_desc_named(txt)
 
 
 def main():
+
     naive_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_naive)
-    print(naive_extraction_obj.percentage_completed)
+    print(
+        f'Extracted naive_extraction_obj, percentage extracted: {naive_extraction_obj.percentage_completed}')
+
     named_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_named)
-    print(named_extraction_obj.percentage_completed)
+    print(
+        f'Extracted named_extraction_obj, percentage extracted: {named_extraction_obj.percentage_completed}')
+
+    lst_of_extraction_obj = dir()
+
+    # write out to dic, change dic to table
+    output_dic = {}
+
+    for var_str in lst_of_extraction_obj:
+        output_dic[var_str] = eval(var_str).percentage_completed
+
+    output_df = pd.DataFrame(output_dic.items(), columns=[
+                             'Extraction_Method', 'Percentage_Captured'])
+
+    output_df.to_csv("..\Data\Processed\Artifacts\Extracted_Percentages.csv", index=False)
+
+    print("Done with testing")
 
 
 if __name__ == "__main__":
