@@ -11,7 +11,7 @@ mcf_df = pd.read_csv("..\Data\Processed\WGS_Dataset_JobInfo_precleaned.csv")
 # Temp: Make dataset smaller so that it is easier to work with
 mcf_df.head()
 
-mcf_df = mcf_df[["Title", "Description", "SSOC"]].sample(frac=0.1)
+mcf_df = mcf_df[["Job_ID", "Title", "Description", "SSOC"]].sample(frac=0.1)
 
 
 # Create a class that takes in the dataset and the cleaning function
@@ -25,7 +25,7 @@ class extraction_text:
         self.extracted_text = self.text.apply(cleaning_fn)
         self.percentage_completed = sum(1 if not bool(
             text) else 0 for text in self.extracted_text) / self.extracted_text.size
-        self.subsample = df_text.head(100)
+        self.subsample = df_text.head(100)  # subsample set seed
 
 # Naive way of extracting
 
