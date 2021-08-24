@@ -13,19 +13,20 @@ mcf_df.head()
 
 mcf_df = mcf_df[["Job_ID", "Title", "Description", "SSOC"]].sample(frac=0.1)
 
-
 # Create a class that takes in the dataset and the cleaning function
 # Captures all the necessary information:
 # 1. Number of entries filled
-# 2. Take the top n as a sample to be returned
+# 2. Take a random sample of 100 to be returned
+
 
 class extraction_text:
     def __init__(self, df_text, cleaning_fn):
         self.text = df_text
         self.extracted_text = self.text.apply(cleaning_fn)
-        self.percentage_completed = sum(1 if not bool(
+        self.percentage_completed = sum(1 if bool(
             text) else 0 for text in self.extracted_text) / self.extracted_text.size
-        self.subsample = df_text.head(100)  # subsample set seed
+        self.subsample_uncleaned = df_text.sample(n=100, random_state=20)  # subsample set seed
+        self.subsample_cleaned = self.extracted_text.sample(n=100, random_state=20)
 
 # Naive way of extracting
 
@@ -98,15 +99,24 @@ def main():
     lst_of_extraction_obj = dir()
 
     # write out to dic, change dic to table
-    output_dic = {}
+
+    output_dic_per = {}
 
     for var_str in lst_of_extraction_obj:
-        output_dic[var_str] = eval(var_str).percentage_completed
+        output_dic_per[var_str] = eval(var_str).percentage_completed
 
-    output_df = pd.DataFrame(output_dic.items(), columns=[
-                             'Extraction_Method', 'Percentage_Captured'])
+    output_df_stats = pd.DataFrame(output_dic_per.items(), columns=[
+        'Extraction_Method', 'Percentage_Captured'])
 
-    output_df.to_csv("..\Data\Processed\Artifacts\Extracted_Percentages.csv", index=False)
+    output_df_stats.to_csv("..\Data\Processed\Artifacts\Extracted_Percentages.csv", index=False)
+
+    output_dic_txt = {'Raw_text': eval(lst_of_extraction_obj[0]).subsample_uncleaned}
+
+    for var_str in lst_of_extraction_obj:
+        output_dic_txt[var_str] = eval(var_str).subsample_cleaned
+
+    output_df_text.to_csv(
+        "..\Data\Processed\Artifacts\Extracted_Text_Sample_100.csv", index=False)
 
     print("Done with testing")
 
