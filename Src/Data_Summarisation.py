@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import re
 from Data_Cleaning import remove_html_tags_newline
+import spacy
+from spacy.matcher import Matcher
 
 # Try to get summarised data out using HTML tags
 
@@ -28,6 +30,10 @@ class extraction_text:
         self.subsample_uncleaned = df_text.sample(n=100, random_state=20)  # subsample set seed
         self.subsample_cleaned = self.extracted_text.sample(n=100, random_state=20)
 
+
+# Creating nlp pipeline
+nlp = spacy.load('en_core_web_lg', disable=['ner'])
+
 # Naive way of extracting
 
 
@@ -44,7 +50,7 @@ def extracting_job_desc_naive(text):
 
     '''
 
-    pattern = re.compile('(?<=<li>).*?(?=</li>)')
+    pattern = re.compile(r'(?smix)(?<=<li>).*?(?=</li>)')
     return pattern.findall(text)
 
 
@@ -56,12 +62,12 @@ def extracting_job_desc_named(text):
 
     Parameters:
         text (str): Selected text
-        lst_words (list): List of header words to look out for
 
     Returns:
-        list_extracted_text(text) : Extracted text
+        list_extracted_text(list[text]): Extracted text
 
     '''
+    # List of header words to look out for
     lst_words = ["Descriptions", "Description", "Competencies", "Competency",
                  "Responsibility", "Responsibilities", "Duty", "Duties",
                  "Outlines", "Outline", "Role", "Roles",
@@ -70,7 +76,7 @@ def extracting_job_desc_named(text):
     output = []
 
     for word in lst_words:
-        pattern = re.compile('(?i)(?<=' + word + ').*?(?=<strong>)')
+        pattern = re.compile(r"(?smix)(?<=" + word + ").*?(?=<strong>)")
         search = pattern.findall(text)
         output.append(search)
 
@@ -78,12 +84,62 @@ def extracting_job_desc_named(text):
 
     return flat_list
 
+# Extracting based on ul tag to get title and description
+
+
+def extracting_job_desc_ultag(text):
+    '''
+
+    Extract job description using specific header text
+
+    Parameters:
+        text (str): Selected text
+
+    Returns:
+        list_extracted_text(list[text]): Extracted text
+
+    '''
+    pattern = re.compile(r'(?smix)(?<=<p>).*?(?=<ul>).*?(?<=<ul>).*?(?=</ul>)')
+    text = pattern.findall(text)
+    splitlst = [t.split(r'<ul>') for t in text]
+    splitdic = [{'title': lst[0], 'description': lst[1]} for lst in splitlst]
+
+    return splitdic
+
+# Trying to match using POS tags (KIV)
+
+# def extracting_job_desc_POS(text):
+#     '''
+#
+#     Extracting job description using POS (verb)
+#
+#     Parameters:
+#         text (str): Selected text
+#
+#     Returns:
+#         list_extracted_text(text): Extracted text
+#
+#     '''
+#
+#     doc = nlp(text)
+#     print([token.text for token in doc])
+#     matcher = Matcher(nlp.vocab)
+#     pattern = [{'POS': 'VERB', 'OP': '+'}, {'TEXT': '<', 'OP': '*'}]
+#
+#     matcher.add('ALL_ACTIVITY_PATTERN', [pattern])
+#
+#     matches = matcher(doc)
+#     matches
+#     doc[11:12]
+#     doc[58:69]
+#     doc[70:75]
+
 
 # testing out extraction
-txt = '<p><strong>Role Descriptions:</strong></p> <p>This position reports to the Commercial Planning &amp; Operations (CPO) manager, and interfaces with OBFS (Own Brands &amp; Food Solutions) staff and product managers.</p> <p><br></p> <p><strong>Specific Responsibilities:</strong></p> <p>Individual will be involved in:</p> <ol> <li>Sourcing process - building long list of suppliers, preparing RFI, RFP, contacting suppliers for the roll out of existing and new products</li> <li>Conducting market-price research, generating price-match proposals for Own Brand portfolio</li> </ol> <p><strong>Technical Skills and Competencies:</strong></p> <ul> <li>Project management, including how to engage stakeholders professionally to deliver project targets</li> <li>Active participation in the sourcing process</li> <li>Participation in price planning process, including contributing to and pitching price-match proposals to stakeholders</li> </ul> <p><strong>Duration of Traineeships:</strong></p> <ul> <li>6 Months</li> </ul> <p><strong>Approved Training Allowance:</strong></p> <ul> <li>Fresh Graduates: S$2500</li> <li>Non-Mature Mid-Career Individuals: $2800</li> <li>Mature Mid-Career Individuals: $3200</li> </ul> <p>This position is open for both recent graduates and mid-career individuals (mature and non mature). Graduates interested in this position should possess a University Degree Qualification. Mid-career individuals from any qualification level can apply.</p></div>'
+text = '<p><strong>Role Descriptions:</strong></p> <p>This position reports to the Commercial Planning &amp; Operations (CPO) manager, and interfaces with OBFS (Own Brands &amp; Food Solutions) staff and product managers.</p> <p><br></p> <p><strong>Specific Responsibilities:</strong></p> <p>Individual will be involved in:</p> <ol> <li>Sourcing process - building long list of suppliers, preparing RFI, RFP, contacting suppliers for the roll out of existing and new products</li> <li>Conducting market-price research, generating price-match proposals for Own Brand portfolio</li> </ol> <p><strong>Technical Skills and Competencies:</strong></p> <ul> <li>Project management, including how to engage stakeholders professionally to deliver project targets</li> <li>Active participation in the sourcing process</li> <li>Participation in price planning process, including contributing to and pitching price-match proposals to stakeholders</li> </ul> <p><strong>Duration of Traineeships:</strong></p> <ul> <li>6 Months</li> </ul> <p><strong>Approved Training Allowance:</strong></p> <ul> <li>Fresh Graduates: S$2500</li> <li>Non-Mature Mid-Career Individuals: $2800</li> <li>Mature Mid-Career Individuals: $3200</li> </ul> <p>This position is open for both recent graduates and mid-career individuals (mature and non mature). Graduates interested in this position should possess a University Degree Qualification. Mid-career individuals from any qualification level can apply.</p></div>'
 
 
-extracting_job_desc_named(txt)
+extracting_job_desc_ultag(text)
 
 
 def main():
