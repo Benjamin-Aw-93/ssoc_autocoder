@@ -1,11 +1,10 @@
+# Functions use
 import pandas as pd
 import re
 import spacy
-# Functions use
+
 
 # Reading in files and selecting + renaming columns
-
-
 def reading_selecting_data(link, *colnames):
     '''
 
@@ -54,6 +53,20 @@ def remove_html_tags_newline(text):
     return re.sub(newline_clean, ' ', re.sub(clean, '', text)).lower()
 
 
+def to_doc(text):
+    '''
+    Create SpaCy documents by wraping text with pipline function
+    '''
+    return nlp(text)
+
+
+def lemmatize_remove_stop(doc):
+    '''
+    Take the `token.lemma_` of each non-stop word
+    '''
+    return [token.lemma_ for token in doc if not token.is_stop and not token.is_punct]
+
+
 def main():
     mcf_df = reading_selecting_data(
         "..\Data\Raw\WGS_Dataset_Part_1_JobInfo.csv", "job_post_id", "title", "description", "ssoc_code")
@@ -65,18 +78,6 @@ def main():
 
     # Loding spacy, pipline for further cleaning
     nlp = spacy.load('en_core_web_lg', disable=['tagger', 'parser', 'ner'])
-
-    def to_doc(text):
-        '''
-        Create SpaCy documents by wraping text with pipline function
-        '''
-        return nlp(text)
-
-    def lemmatize_remove_stop(doc):
-        '''
-        Take the `token.lemma_` of each non-stop word
-        '''
-        return [token.lemma_ for token in doc if not token.is_stop and not token.is_punct]
 
     # create documents for all tuples of tokens
     docs = list(map(to_doc, mcf_df['Description no HTML']))
