@@ -2,9 +2,10 @@
 import numpy as np
 import pandas as pd
 import re
-from Data_Cleaning import remove_html_tags_newline
 import spacy
+from Data_Cleaning import remove_html_tags_newline, to_doc, lemmatize_remove_stop
 from spacy.matcher import Matcher
+from collections import deque
 
 # Try to get summarised data out using HTML tags
 
@@ -32,7 +33,7 @@ class extraction_text:
 
 
 # Creating nlp pipeline
-nlp = spacy.load('en_core_web_lg', disable=['ner'])
+nlp = spacy.load('en_core_web_lg')
 
 # Naive way of extracting
 
@@ -53,8 +54,9 @@ def extracting_job_desc_naive(text):
     pattern = re.compile(r'(?smix)(?<=<li>).*?(?=</li>)')
     return pattern.findall(text)
 
-
 # Extracting based on finding the word description
+
+
 def extracting_job_desc_named(text):
     '''
 
@@ -87,6 +89,17 @@ def extracting_job_desc_named(text):
 # Extracting based on ul tag to get title and description
 
 
+def max_similarity(lst, word):
+    return max(map(lambda x: (nlp(x).similarity(nlp(word))), lst))
+
+
+def lemmatize_remove_punct(doc):
+    '''
+    Take the `token.lemma_` of each non-stop word
+    '''
+    return [token.lemma_ for token in doc if not token.is_punct]
+
+
 def extracting_job_desc_ultag(text):
     '''
 
@@ -99,12 +112,47 @@ def extracting_job_desc_ultag(text):
         list_extracted_text(list[text]): Extracted text
 
     '''
-    pattern = re.compile(r'(?smix)(?<=<p>).*?(?=<ul>).*?(?<=<ul>).*?(?=</ul>)')
-    text = pattern.findall(text)
-    splitlst = [t.split(r'<ul>') for t in text]
-    splitdic = [{'title': lst[0], 'description': lst[1]} for lst in splitlst]
+    pattern = re.compile(r'(?smix)(?=<p>).*?(?<=</p>).*?(?=<ol>|<ul>).*?(?<=</ol>|</ul>)')
+    textlst = pattern.findall(text)
+    splitlst = [t.split(r'</p>') for t in textlst]
 
-    return splitdic
+    splitlst = []
+
+    for t in textlst:
+        txt = t.split(r'</p>')
+        if len(txt) == 2:
+            splitlst.append(txt)
+        else:
+            placeholder = []
+            for iter in txt[::-1]:
+                if "strong" not in iter:
+                    placeholder.append(iter)
+                else:
+                    placeholder.append(iter)
+                    splitlst.append(placeholder[::-1])
+                    placeholder = []
+
+    splitdic = [{'title': lst[0], 'description': ' '.join(lst[1:])} for lst in splitlst]
+
+    # cleaning each individual items
+    splitdic_cleaned = [{'title': " ".join(remove_html_tags_newline(dic['title']).split()),
+                         'description': " ".join(remove_html_tags_newline(dic['description']).split())} for dic in splitdic]
+
+    if len(splitdic_cleaned) == 0:
+        return []
+
+    deci_table = [lemmatize_remove_punct(nlp(dic['title'])) for dic in splitdic_cleaned]
+
+    try:
+        deci_table_index = [max_similarity(lst, "description") for lst in deci_table]
+        deci_table_index = deci_table_index.index(max(deci_table_index))
+
+    except ValueError:
+        return []
+
+    else:
+        return splitdic_cleaned[deci_table_index]
+
 
 # Trying to match using POS tags (KIV)
 
@@ -152,6 +200,10 @@ def main():
     print(
         f'Extracted named_extraction_obj, percentage extracted: {named_extraction_obj.percentage_completed}')
 
+    ultag_extraction_obj = extraction_text(mcf_df["Description"], extracting_job_desc_ultag)
+    print(
+        f'Extracted ultag_extraction_obj, percentage extracted: {ultag_extraction_obj.percentage_completed}')
+
     lst_of_extraction_obj = dir()
 
     # write out to dic, change dic to table
@@ -170,6 +222,8 @@ def main():
 
     for var_str in lst_of_extraction_obj:
         output_dic_txt[var_str] = eval(var_str).subsample_cleaned
+
+    output_df_text = pd.DataFrame.from_dict(output_dic_txt)
 
     output_df_text.to_csv(
         "..\Data\Processed\Artifacts\Extracted_Text_Sample_100.csv", index=False)
