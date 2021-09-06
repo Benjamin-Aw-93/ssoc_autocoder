@@ -84,7 +84,9 @@ def extracting_job_desc_named(text):
 
     flat_list = [remove_html_tags_newline(item) for sublist in output for item in sublist]
 
-    return flat_list
+    clean = re.compile(r'(?m)\s+.*\w')
+
+    return [' '.join(clean.search(text).group(0).strip().split()) for text in flat_list]
 
 # Extracting based on ul tag to get title and description
 
