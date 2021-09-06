@@ -72,8 +72,7 @@ def extracting_job_desc_named(text):
     # List of header words to look out for
     lst_words = ["Descriptions", "Description", "Competencies", "Competency",
                  "Responsibility", "Responsibilities", "Duty", "Duties",
-                 "Outlines", "Outline", "Role", "Roles",
-                 "Responsibility", "Responsibilities"]
+                 "Outlines", "Outline", "Role", "Roles"]
 
     output = []
 
@@ -84,24 +83,21 @@ def extracting_job_desc_named(text):
 
     flat_list = [remove_html_tags_newline(item) for sublist in output for item in sublist]
 
-    clean = re.compile(r'(?m)\s+.*\w')
-
-    return [' '.join(clean.search(text).group(0).strip().split()) for text in flat_list]
-
-# Extracting based on ul tag to get title and description
+    return [' '.join(text.strip(string.punctuation).strip().split()) for text in flat_list]
 
 
 def max_similarity(lst, word):
-    return max(map(lambda x: (nlp(x).similarity(nlp(word))), lst))
+    return nlp(' '.join(lst)).similarity(nlp(word))
 
 
 def lemmatize_remove_punct(doc):
     '''
     Take the `token.lemma_` of each non-stop word
     '''
-    return [token.lemma_ for token in doc if not token.is_punct]
+    return [token.lemma_ for token in doc if not token.is_stop and not token.is_punct]
 
 
+# Extracting based on ul tag to get title and description
 def extracting_job_desc_ultag(text):
     '''
 
@@ -116,23 +112,23 @@ def extracting_job_desc_ultag(text):
     '''
     pattern = re.compile(r'(?smix)(?=<p>).*?(?<=</p>).*?(?=<ol>|<ul>).*?(?<=</ol>|</ul>)')
     textlst = pattern.findall(text)
-    splitlst = [t.split(r'</p>') for t in textlst]
 
     splitlst = []
 
     for t in textlst:
         txt = t.split(r'</p>')
-        if len(txt) == 2:
+        if len(txt) == 2:  # only 2 items, so first must be the header, the second must be the description
             splitlst.append(txt)
         else:
-            placeholder = []
-            for iter in txt[::-1]:
-                if "strong" not in iter:
-                    placeholder.append(iter)
+            placeholder = []  # palceholder list, to be added to the main list
+            for iter in txt[::-1]:  # go through the back of the list
+                if "<p>" not in iter:  # if paragraph tag not in iter
+                    placeholder.append(iter)  # append as description
                 else:
-                    placeholder.append(iter)
+                    placeholder.append(iter)  # append as title
+                    # reverse the list so that the title is now at position 0
                     splitlst.append(placeholder[::-1])
-                    placeholder = []
+                    placeholder = []  # reset the list
 
     splitdic = [{'title': lst[0], 'description': ' '.join(lst[1:])} for lst in splitlst]
 
@@ -140,21 +136,32 @@ def extracting_job_desc_ultag(text):
     splitdic_cleaned = [{'title': " ".join(remove_html_tags_newline(dic['title']).split()),
                          'description': " ".join(remove_html_tags_newline(dic['description']).split())} for dic in splitdic]
 
+    # return nothing
     if len(splitdic_cleaned) == 0:
         return []
 
     deci_table = [lemmatize_remove_punct(nlp(dic['title'])) for dic in splitdic_cleaned]
-
+    # if fail due to non-existing title, return empty
     try:
-        deci_table_index = [max_similarity(lst, "description") for lst in deci_table]
-        deci_table_index = deci_table_index.index(max(deci_table_index))
+        deci_table_index = [max_similarity(
+            lst, "job description, duty and responsibility") for lst in deci_table]
+
+        deci_table_withscore = list(zip(splitdic_cleaned, deci_table_index))
+
+        # entry[0] being the dictionary, entry[1] being the score, rewriting the zip
+        output = []
+
+        for entry in deci_table_withscore:
+            temp_dic = entry[0]
+            temp_score = entry[1]
+            temp_dic['score'] = temp_score
+            output.append(temp_dic)
 
     except ValueError:
         return []
 
     else:
-        return splitdic_cleaned[deci_table_index]
-
+        return output
 
 # Trying to match using POS tags (KIV)
 
@@ -183,13 +190,6 @@ def extracting_job_desc_ultag(text):
 #     doc[11:12]
 #     doc[58:69]
 #     doc[70:75]
-
-
-# testing out extraction
-text = '<p><strong>Role Descriptions:</strong></p> <p>This position reports to the Commercial Planning &amp; Operations (CPO) manager, and interfaces with OBFS (Own Brands &amp; Food Solutions) staff and product managers.</p> <p><br></p> <p><strong>Specific Responsibilities:</strong></p> <p>Individual will be involved in:</p> <ol> <li>Sourcing process - building long list of suppliers, preparing RFI, RFP, contacting suppliers for the roll out of existing and new products</li> <li>Conducting market-price research, generating price-match proposals for Own Brand portfolio</li> </ol> <p><strong>Technical Skills and Competencies:</strong></p> <ul> <li>Project management, including how to engage stakeholders professionally to deliver project targets</li> <li>Active participation in the sourcing process</li> <li>Participation in price planning process, including contributing to and pitching price-match proposals to stakeholders</li> </ul> <p><strong>Duration of Traineeships:</strong></p> <ul> <li>6 Months</li> </ul> <p><strong>Approved Training Allowance:</strong></p> <ul> <li>Fresh Graduates: S$2500</li> <li>Non-Mature Mid-Career Individuals: $2800</li> <li>Mature Mid-Career Individuals: $3200</li> </ul> <p>This position is open for both recent graduates and mid-career individuals (mature and non mature). Graduates interested in this position should possess a University Degree Qualification. Mid-career individuals from any qualification level can apply.</p></div>'
-
-
-extracting_job_desc_ultag(text)
 
 
 def main():
@@ -224,6 +224,9 @@ def main():
 
     for var_str in lst_of_extraction_obj:
         output_dic_txt[var_str] = eval(var_str).subsample_cleaned
+
+    output_dic_txt['ultag_extraction_max'] = max(
+        ultag_extraction_obj.subsample_cleaned, key=lambda x: x['score'])
 
     output_df_text = pd.DataFrame.from_dict(output_dic_txt)
 
