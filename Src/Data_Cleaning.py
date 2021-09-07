@@ -1,9 +1,9 @@
 # Importing libraries
 import pandas as pd
 import re
-import spacy
+import numpy as np
+# import spacy
 
-# Reading in files and selecting + renaming columns
 def processing_raw_data(filename, *colnames):
     """
     Processes the raw dataset into the right data structure
@@ -21,9 +21,11 @@ def processing_raw_data(filename, *colnames):
     """
 
     # Reading in the CSV file
+    print(f'Reading in the CSV file "{filename}"...')
     data = pd.read_csv(filename)
 
     # Checking that the colnames are entered in correctly
+    print('Subsetting the data and renaming columns...')
     for colname in list(colnames):
         if colname not in data.columns:
             raise AssertionError(f'Error: Column "{colname}" not found in the CSV file.')
@@ -43,48 +45,19 @@ def processing_raw_data(filename, *colnames):
     #data['SSOC'] = data['SSOC'].astype(int)
 
     # Enforcing string type character for the SSOC field and doing a whitespace strip
-    data['SSOC'] = data['SSOC'].astype('str').str.strip()
+    data['SSOC_2015'] = data['SSOC_2015'].astype('str').str.strip()
 
     # To Ben: This is unexpected behaviour - we should raise a warning/error instead of there are nulls.
     #data = data.dropna(axis=0, how='any')
 
     # Checking if there are any unexpected nulls in the data
-    if sum(data.isna()) != 0:
-        raise AssertionError(f"Error: {sum(data.isna())} nulls detected in the data.")
+    if np.sum(data.isna().values) != 0:
+        raise AssertionError(f"Error: {np.sum(data.isna().values)} nulls detected in the data.")
+    else:
+        print('No nulls detected in the data.')
 
+    print('Processing complete!')
     return data
-
-
-def remove_html_tags_newline(text):
-    """
-    Remove html tags from a string with generic regex
-
-    Parameters:
-        text (str): Selected text
-
-    Returns:
-        cleaned_text(text) : Text with html tags and new line  removed
-
-    """
-
-    clean = re.compile('<.*?>')
-    newline_clean = re.compile('\n')
-    return re.sub(newline_clean, ' ', re.sub(clean, '', text)).lower()
-
-
-def to_doc(text):
-    '''
-    Create SpaCy documents by wrapping text with pipeline function
-    '''
-    return nlp(text)
-
-
-def lemmatize_remove_stop(doc):
-    '''
-    Take the `token.lemma_` of each non-stop word
-    '''
-    return [token.lemma_ for token in doc if not token.is_stop and not token.is_punct]
-
 
 def main():
 
@@ -98,16 +71,42 @@ def main():
     # To Ben: Not used, we can drop it for now
     # Loading spacy, pipeline for further cleaning
     # nlp = spacy.load('en_core_web_lg', disable=['tagger', 'parser', 'ner'])
-
     # create documents for all tuples of tokens
-    docs = list(map(to_doc, mcf_df['Description no HTML']))
-
+    # docs = list(map(to_doc, mcf_df['Description no HTML']))
     # apply stop word removal and lemmatization to each text within Description
-    mcf_df['Lem Desc rm stop words tokenised'] = list(map(lemmatize_remove_stop, docs))
+    #mcf_df['Lem Desc rm stop words tokenised'] = list(map(lemmatize_remove_stop, docs))
 
     # Exploring extraction of job description using HTML tags
     mcf_df.to_csv("..\Data\Processed\WGS_Dataset_JobInfo_precleaned.csv", index=False)
 
-
 if __name__ == "__main__":
     main()
+
+## Currently inactive, keeping for reference
+
+def remove_html_tags_newline(text):
+    """
+    Removes HTML and newline tags from a string with generic regex
+
+    Parameters:
+        text (str): Selected text
+
+    Returns:
+        cleaned_text(text) : Text with html tags and new line removed
+    """
+
+    clean = re.compile('<.*?>')
+    newline_clean = re.compile('\n')
+    return re.sub(newline_clean, ' ', re.sub(clean, '', text)).lower()
+
+def to_doc(text):
+    """
+    Create SpaCy documents by wrapping text with pipeline function
+    """
+    return nlp(text)
+
+def lemmatize_remove_stop(doc):
+    '''
+    Take the `token.lemma_` of each non-stop word
+    '''
+    return [token.lemma_ for token in doc if not token.is_stop and not token.is_punct]
