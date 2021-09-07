@@ -4,13 +4,13 @@ import pandas as pd
 import re
 import spacy
 import string
-from Data_Cleaning import remove_html_tags_newline, to_doc, lemmatize_remove_stop
+from Src.Data_Cleaning import remove_html_tags_newline, to_doc, lemmatize_remove_stop
 from spacy.matcher import Matcher
 from collections import deque
 
 # Try to get summarised data out using HTML tags
 
-mcf_df = pd.read_csv("..\Data\Processed\WGS_Dataset_JobInfo_precleaned.csv")
+mcf_df = pd.read_csv("Data\Processed\WGS_Dataset_JobInfo_precleaned.csv")
 
 # Temp: Make dataset smaller so that it is easier to work with
 mcf_df.head()
