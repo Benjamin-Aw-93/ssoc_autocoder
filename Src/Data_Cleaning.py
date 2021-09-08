@@ -3,8 +3,12 @@ import pandas as pd
 import re
 import spacy
 
+# Loding spacy, pipline for further cleaning
+nlp = spacy.load('en_core_web_lg', disable=['tagger', 'parser', 'ner'])
 
 # Reading in files and selecting + renaming columns
+
+
 def reading_selecting_data(link, *colnames):
     '''
 
@@ -69,15 +73,12 @@ def lemmatize_remove_stop(doc):
 
 def main():
     mcf_df = reading_selecting_data(
-        "..\Data\Raw\WGS_Dataset_Part_1_JobInfo.csv", "job_post_id", "title", "description", "ssoc_code")
+        "../Data/Raw/WGS_Dataset_Part_1_JobInfo.csv", "job_post_id", "title", "description", "ssoc_code")
 
     # Apply removal across rows along both the Title and Description
     mcf_df['Title'] = mcf_df['Title'].apply(remove_html_tags_newline)
 
     mcf_df['Description no HTML'] = mcf_df['Description'].apply(remove_html_tags_newline)
-
-    # Loding spacy, pipline for further cleaning
-    nlp = spacy.load('en_core_web_lg', disable=['tagger', 'parser', 'ner'])
 
     # create documents for all tuples of tokens
     docs = list(map(to_doc, mcf_df['Description no HTML']))
@@ -86,7 +87,7 @@ def main():
     mcf_df['Lem Desc rm stop words tokenised'] = list(map(lemmatize_remove_stop, docs))
 
     # Exploring extraction of job description using HTML tags
-    mcf_df.to_csv("..\Data\Processed\WGS_Dataset_JobInfo_precleaned.csv", index=False)
+    mcf_df.to_csv("../Data/Processed/WGS_Dataset_JobInfo_precleaned.csv", index=False)
 
 
 if __name__ == "__main__":
