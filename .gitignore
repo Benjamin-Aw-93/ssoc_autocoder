@@ -7,3 +7,5 @@
 **/my_enviro
 /.idea/
 /venv
+/Notebooks/.ipynb_checkpoints/*
+/Models/*
