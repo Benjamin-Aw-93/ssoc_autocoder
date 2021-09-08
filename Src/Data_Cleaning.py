@@ -80,7 +80,7 @@ def main():
 
     mcf_df['Description no HTML'] = mcf_df['Description'].apply(remove_html_tags_newline)
 
-    # create documents for all tuples of tokens
+    # create documents for all tuples of token
     docs = list(map(to_doc, mcf_df['Description no HTML']))
 
     # apply stop word removal and lemmatization to each text within Description
