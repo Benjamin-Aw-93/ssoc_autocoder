@@ -2,7 +2,7 @@
 import pandas as pd
 import re
 import numpy as np
-# import spacy
+
 
 def processing_raw_data(filename, *colnames):
     """
@@ -59,10 +59,12 @@ def processing_raw_data(filename, *colnames):
     print('Processing complete!')
     return data
 
+
 def main():
 
     # Importing and processing the raw data
-    mcf_df = processing_raw_data("..\Data\Raw\WGS_Dataset_Part_1_JobInfo.csv", "job_post_id", "title", "description", "ssoc_code")
+    mcf_df = processing_raw_data("..\Data\Raw\WGS_Dataset_Part_1_JobInfo.csv",
+                                 "job_post_id", "title", "description", "ssoc_code")
 
     # Apply removal across rows along both the Title and Description
     mcf_df['Title'] = mcf_df['Title'].apply(remove_html_tags_newline)
@@ -79,10 +81,12 @@ def main():
     # Exploring extraction of job description using HTML tags
     mcf_df.to_csv("..\Data\Processed\WGS_Dataset_JobInfo_precleaned.csv", index=False)
 
+
 if __name__ == "__main__":
     main()
 
-## Currently inactive, keeping for reference
+# Currently inactive, keeping for reference
+
 
 def remove_html_tags_newline(text):
     """
@@ -99,11 +103,13 @@ def remove_html_tags_newline(text):
     newline_clean = re.compile('\n')
     return re.sub(newline_clean, ' ', re.sub(clean, '', text)).lower()
 
+
 def to_doc(text):
     """
     Create SpaCy documents by wrapping text with pipeline function
     """
     return nlp(text)
+
 
 def lemmatize_remove_stop(doc):
     '''

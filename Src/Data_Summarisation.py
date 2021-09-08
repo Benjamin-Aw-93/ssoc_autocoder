@@ -1,12 +1,10 @@
 # Importing required libraries
-import numpy as np
 import pandas as pd
 import re
 import spacy
 import string
-from Src.Data_Cleaning import remove_html_tags_newline, to_doc, lemmatize_remove_stop
-from spacy.matcher import Matcher
-from collections import deque
+from Src.Data_Cleaning import remove_html_tags_newline
+
 
 # Try to get summarised data out using HTML tags
 
