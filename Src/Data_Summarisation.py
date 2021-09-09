@@ -8,12 +8,10 @@ from Src.Data_Cleaning import remove_html_tags_newline
 
 # Try to get summarised data out using HTML tags
 
-mcf_df = pd.read_csv("Data\Processed\WGS_Dataset_JobInfo_precleaned.csv")
+mcf_df = pd.read_csv("..\Data\Processed\WGS_Dataset_JobInfo_precleaned.csv")
 
 # Temp: Make dataset smaller so that it is easier to work with
-mcf_df.head()
-
-mcf_df = mcf_df[["Job_ID", "Title", "Description", "SSOC"]].sample(frac=0.1)
+mcf_df.head().columns
 
 # Create a class that takes in the dataset and the cleaning function
 # Captures all the necessary information:
@@ -162,34 +160,6 @@ def extracting_job_desc_ultag(text):
     else:
         return output
 
-# Trying to match using POS tags (KIV)
-
-# def extracting_job_desc_POS(text):
-#     '''
-#
-#     Extracting job description using POS (verb)
-#
-#     Parameters:
-#         text (str): Selected text
-#
-#     Returns:
-#         list_extracted_text(text): Extracted text
-#
-#     '''
-#
-#     doc = nlp(text)
-#     print([token.text for token in doc])
-#     matcher = Matcher(nlp.vocab)
-#     pattern = [{'POS': 'VERB', 'OP': '+'}, {'TEXT': '<', 'OP': '*'}]
-#
-#     matcher.add('ALL_ACTIVITY_PATTERN', [pattern])
-#
-#     matches = matcher(doc)
-#     matches
-#     doc[11:12]
-#     doc[58:69]
-#     doc[70:75]
-
 
 def main():
 
@@ -206,6 +176,7 @@ def main():
         f'Extracted ultag_extraction_obj, percentage extracted: {ultag_extraction_obj.percentage_completed}')
 
     lst_of_extraction_obj = dir()
+    lst_of_extraction_obj = ['naive_extraction_obj', 'named_extraction_obj', 'ultag_extraction_obj']
 
     # write out to dic, change dic to table
 
@@ -219,18 +190,21 @@ def main():
 
     output_df_stats.to_csv("..\Data\Processed\Artifacts\Extracted_Percentages.csv", index=False)
 
-    output_dic_txt = {'Raw_text': eval(lst_of_extraction_obj[0]).subsample_uncleaned}
+    output_dic_txt = {'Raw_text': eval(lst_of_extraction_obj[0]).text}
 
     for var_str in lst_of_extraction_obj:
-        output_dic_txt[var_str] = eval(var_str).subsample_cleaned
+        output_dic_txt[var_str] = eval(var_str).extracted_text
 
-    output_dic_txt['ultag_extraction_max'] = max(
-        ultag_extraction_obj.subsample_cleaned, key=lambda x: x['score'])
+    output_dic_txt['ultag_extraction_max'] = ultag_extraction_obj.extracted_text.apply(
+        lambda entry: max(entry, key=lambda x: x['score']) if entry else {})
 
     output_df_text = pd.DataFrame.from_dict(output_dic_txt)
 
+    df_add = mcf_df[['Job_ID', 'Title', 'Description', 'SSOC']]
+    output_df_text = pd.concat([df_add, output_df_text, ], axis=1)
+
     output_df_text.to_csv(
-        "..\Data\Processed\Artifacts\Extracted_Text_Sample_100.csv", index=False)
+        "..\Data\Processed\Artifacts\Extracted_Text.csv", index=False)
 
     print("Done with testing")
 
