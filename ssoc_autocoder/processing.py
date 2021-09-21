@@ -1,7 +1,6 @@
 import pandas as pd
 import re
 import numpy as np
-from pathlib import Path
 
 
 def processing_raw_data(filename, *colnames):
