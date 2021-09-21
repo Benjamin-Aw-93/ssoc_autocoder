@@ -1,63 +1,4 @@
-import pandas as pd
 import re
-import numpy as np
-
-
-def processing_raw_data(filename, *colnames):
-    """
-    Processes the raw dataset into the right data structure
-
-    Parameters:
-        filename (str): Link to the specific dataset
-        *colnames (str): Subsequent columns in order. Job Title, Job Description and SSOC 2015
-
-    Returns:
-        processed_data(link, *colnames): The dataset is imported and processed
-
-    Raises:
-        AssertionError: If any of the colnames specified do not exist in the data
-        AssertionError: If there is a null value in the data
-    """
-
-    # Reading in the CSV file
-    print(f'Reading in the CSV file "{filename}"...')
-    data = pd.read_csv(filename)
-
-    # Checking that the colnames are entered in correctly
-    print('Subsetting the data and renaming columns...')
-    for colname in list(colnames):
-        if colname not in data.columns:
-            raise AssertionError(f'Error: Column "{colname}" not found in the CSV file.')
-
-    # Subsetting the data to retain only the required columns
-    data = data[list(colnames)]
-
-    # Renaming the columns
-    dict_map = {colnames[0]: 'Job_ID',
-                colnames[1]: 'Title',
-                colnames[2]: 'Description',
-                colnames[3]: 'SSOC_2015'}
-    data.rename(columns=dict_map, inplace=True)
-
-    # To Ben: We shouldn't coerce to numeric as there are some SSOCs with characters
-    #data['SSOC'] = pd.to_numeric(data['SSOC'], errors='coerce')
-    #data['SSOC'] = data['SSOC'].astype(int)
-
-    # Enforcing string type character for the SSOC field and doing a whitespace strip
-    data['SSOC_2015'] = data['SSOC_2015'].astype('str').str.strip()
-
-    # To Ben: This is unexpected behaviour - we should raise a warning/error instead of there are nulls.
-    #data = data.dropna(axis=0, how='any')
-
-    # Checking if there are any unexpected nulls in the data
-    if np.sum(data.isna().values) != 0:
-        raise AssertionError(f"Error: {np.sum(data.isna().values)} nulls detected in the data.")
-    else:
-        print('No nulls detected in the data.')
-
-    print('Processing complete!')
-    return data
-
 
 def remove_prefix(text, prefixes):
     """
@@ -75,13 +16,13 @@ def remove_prefix(text, prefixes):
             return text[len(prefix):].strip()
     return text
 
-
-def check_if_first_word_is_verb(string):
+def check_if_first_word_is_verb(string, nlp):
     """
     Checks if the first word of the string is a verb
 
     Parameters:
         string (str): Text to check for
+        nlp (obj): Spacy nlp object
 
     Returns:
         Whether the first word is a verb or not
@@ -112,7 +53,6 @@ def check_if_first_word_is_verb(string):
 
     # Check if the first word is a verb
     return nlp(string)[0].pos_ == 'VERB'
-
 
 def clean_raw_string(string):
     """
@@ -145,7 +85,6 @@ def clean_raw_string(string):
 
     return string
 
-
 def clean_html_unicode(string):
     """
     Cleans the raw text from html codes
@@ -163,7 +102,7 @@ def clean_html_unicode(string):
     # <.*?>: removes html tages
     # ^\d+\.{0,1} removes any bullet points for digits
     # [^\w\s] removes any other symbols
-    cleaning_regex = ['<.*?>', '^\d+\.{0,1}', '[^\w\s]']
+    cleaning_regex = [r'<.*?>', r'^\d+\.{0,1}', r'[^\w\s]']
 
     # Iteratively apply each regex
     for regex in cleaning_regex:
@@ -399,13 +338,12 @@ def process_p_tag(text):
     for para_element in para_elements:
 
         # Remove all the HTML tags and check if the first word is a verb
-        para_element_cleaned = re.sub("[^\w\s]", "", re.sub('<.*?>', '', para_element)).strip()
+        para_element_cleaned = re.sub(r"[^\w\s]", "", re.sub(r'<.*?>', '', para_element)).strip()
         if len(para_element_cleaned) > 0:
             if check_if_first_word_is_verb(para_element_cleaned):
                 output.append(para_element)
 
     return " ".join(output)
-
 
 def process_text(raw_text):
     """
