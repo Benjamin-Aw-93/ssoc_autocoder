@@ -1,4 +1,12 @@
+# import packages
 import re
+import copy
+from bs4 import BeautifulSoup
+
+# load spacy object: To remove after testing
+import spacy
+nlp = spacy.load('en_core_web_lg')
+
 
 def remove_prefix(text, prefixes):
     """
@@ -15,6 +23,7 @@ def remove_prefix(text, prefixes):
         if text.startswith(prefix):
             return text[len(prefix):].strip()
     return text
+
 
 def check_if_first_word_is_verb(string, nlp):
     """
@@ -54,6 +63,7 @@ def check_if_first_word_is_verb(string, nlp):
     # Check if the first word is a verb
     return nlp(string)[0].pos_ == 'VERB'
 
+
 def clean_raw_string(string):
     """
     Cleans the raw text from problematic strings or abbreviations
@@ -85,6 +95,7 @@ def clean_raw_string(string):
 
     return string
 
+
 def clean_html_unicode(string):
     """
     Cleans the raw text from html codes
@@ -111,7 +122,7 @@ def clean_html_unicode(string):
     return cleaned_string
 
 
-def check_list_for_verbs(list_elements):
+def check_list_for_verbs(list_elements, nlp):
     """
     Check list for verbs after extracting text text based on each method below
 
@@ -127,16 +138,19 @@ def check_list_for_verbs(list_elements):
     # Iterate through each of the list elements passed in
     for list_element in list_elements:
 
-        # Use regex to split up the list into items
+        # Use bs4 to split up the list into items
         # Note this depends on whether the list elements
         # passed in are lists (ol/ul) or paragraph lists (p)
-        if list_element[0:4] in ['<ul>', '<ol>']:
-            list_items_pattern = re.compile(r'(?=<li>).*?(?<=</li>)')
+        if list_element.name in ('ol', 'ul'):
+            tag_of_interest = 'li'
         else:
-            list_items_pattern = re.compile(r'(?=<p>).*?(?<=</p>)')
+            tag_of_interest = 'p'
 
         # Split each list up into the constituent items
-        list_items = list_items_pattern.findall(list_element)
+        list_items = list_element.find_all(tag_of_interest)
+
+        # Convert the list of bs4.tags back to list of string
+        list_items = [str(item) for item in list_items]
 
         # Initialise a count of number of items beginning with a verb
         count = 0
@@ -146,10 +160,10 @@ def check_list_for_verbs(list_elements):
 
             # Remove all the HTML tags and check if the first word is a verb
             list_item = clean_html_unicode(list_item)
-            #list_item = re.sub("[^\w\s]", "", re.sub('^\d+\.{0,1}', '', re.sub('<.*?>', '', list_item.replace('\t', '')).strip())).strip()
+            # list_item = re.sub("[^\w\s]", "", re.sub('^\d+\.{0,1}', '', re.sub('<.*?>', '', list_item.replace('\t', '')).strip())).strip()
 
             # Check if the first word is a verb, and add to score if it is
-            if check_if_first_word_is_verb(list_item):
+            if check_if_first_word_is_verb(list_item, nlp):
                 count += 1
 
         # Add the list length and verb score to the output
@@ -172,28 +186,41 @@ def check_list_for_verbs(list_elements):
         elif (verb_score[0] < 6) and (verb_score[1] >= .7):
 
             # Remove the starting list tag if it is included
-            list_elements_i_cleaned = re.sub(r'(<ul>|<ol>|</ul>|</ol>)', '', list_elements[i])
+            # list_elements_i_cleaned = list_elements[i].find_all('li')
+            # print(list_elements_i_cleaned)
 
             # If the preceding list has a </ul> or </ol> tag
             # then we should remove it before concatenating the
             # strings, but otherwise we just concat the strings directly
-            if for_recursive[-1][:-5] in ['</ul>', '</ol>']:
-                for_recursive[-1] = for_recursive[-1][:-5] + " " + \
-                    list_elements_i_cleaned + for_recursive[-1][-5:]
+            if for_recursive[-1].name in ['ul', 'ol']:
+                # Get name of the head tag ul or ol
+                tag_header = for_recursive[-1].name
+                # Find all li tags in both tags
+                temp_list = for_recursive[-1].find_all('li') + list_elements[i].find_all('li')
+                # Concat as string, wrapping with orginal head tag
+                temp_list = '<%s>%s</%s>' % (tag_header,
+                                             ' '.join([str(tag) for tag in temp_list]), tag_header)
+
+                # Insert back to list as bs tag
+                for_recursive[-1] = BeautifulSoup(temp_list, "html.parser").find(['ol', 'ul'])
+
             else:
-                for_recursive[-1] += list_elements[i]
+                # Find all content in each tag
+                temp_str = str(for_recursive[-1]) + " " + str(list_elements[i])
+
+                for_recursive[-1] = BeautifulSoup(temp_str, "html.parser")
 
         # Otherwise we just append it back to the list
         else:
+
             for_recursive.append(list_elements[i])
 
     # Run the recursive function if we have merged some lists together
     if len(for_recursive) != len(list_elements):
-        return check_list_for_verbs(for_recursive)
+        return check_list_for_verbs(for_recursive, nlp)
 
     # Otherwise, we output the verb scores
     else:
-
         # Append the verb score to the list
         # with a exception for very short lists
         final_verb_scores = []
@@ -213,7 +240,7 @@ def check_list_for_verbs(list_elements):
             return []
 
 
-def process_li_tag(text):
+def process_li_tag(text, nlp):
     """
     Process job descriptions using li tags
 
@@ -229,16 +256,19 @@ def process_li_tag(text):
     # (?=<ol>|<ul>) is the lookahead for the <ol> or <ul> tag
     # .* captures everything between the tags, ? restricts it to capturing one set only
     # (?<=</ol>|</ul>) is the lookbehind for the </ol> or </ul> tag
-    list_pattern = re.compile(r'(?=<ol>|<ul>).*?(?<=</ol>|</ul>)')
-    list_elements = list_pattern.findall(text)
+    list_elements = BeautifulSoup(text, 'html.parser').find_all(['ol', 'ul'])
+
+    # Deprecated: regex function
+    # list_pattern = re.compile(r'(?=<ol>|<ul>).*?(?<=</ol>|</ul>)')
+    # list_elements = list_pattern.findall(text)
 
     if len(list_elements) == 0:
         return []
 
-    return check_list_for_verbs(list_elements)
+    return check_list_for_verbs(list_elements, nlp)
 
 
-def process_p_list(text):
+def process_p_list(text, nlp):
     """
     Process job descriptions using p tags. Extracting out text preceeded by literal bulletpoints or numeric points.
 
@@ -249,69 +279,35 @@ def process_p_list(text):
         List of extracted text, post-processed by check_list_for_verbs(list_elements)
     """
     # Extract all lists in the HTML with a paragraph tag (<p>)
-    # Regex explanation:
-    # (?=<p>) is the lookahead for the <p> tag
-    # .* captures everything between the tags, ? restricts it to capturing one set only
-    # (?<=</p>) is the lookbehind for the </p> tag
-    para_pattern = re.compile(r'(?=<p>).*?(?<=</p>)')
-    para_elements = para_pattern.findall(text)
-
-    # Check for specific unicode characters that can be used as bullet points
-    unicode_to_check = ['\u2022', '\u002d', '\u00b7']
-    bullet_pt_presence = []
-    for para_element in para_elements:
-
-        # Remove all the HTML tags
-        para_element_cleaned = re.sub('<.*?>', '', para_element).strip()
-
-        # Check if the string is non-empty
-        if len(para_element_cleaned) > 0:
-
-            # Check if the first character has any bullet points
-            result1 = para_element_cleaned[0] in unicode_to_check
-
-            # Check if the first character is a numbered list
-            # by checking if the re.match() returns anything
-            result2 = re.match(r'^\d+\.', para_element_cleaned) is not None
-
-            bullet_pt_presence.append(result1 or result2)
-
-        # If it is empty, then it doesn't contain any bullet points
-        else:
-            bullet_pt_presence.append(False)
-
-    # Initialise the lists
+    # Only tags containing a bullet point (captured by unicode) or tags with Numbers followed by a period will be captured
+    soup = BeautifulSoup(text, 'html.parser')
     output = []
-    p_list = []
+    temp = []
 
-    # Build an equivalent list of list items by iterating
-    # through the boolean list indicating if there is
-    # a bullet point character at the start of the string
-    for i, value in enumerate(bullet_pt_presence):
-
-        # If there is a bullet point character
-        if value:
-
-            # Append the string to the para list
-            p_list.append(para_elements[i])
-
-        # If there is no bullet point character
+    # Extract consecutive list of para
+    for para in soup.select('p'):
+        if re.match('^ *(\u2022|\u002d|\u00b7|\d+\.*)', str(para.contents[0])):
+            # If match a bullet point or numeric numbering
+            temp.append(para)
         else:
+            if temp:
+                # Adding bs tag item
+                temp = [str(i) for i in temp]
+                output.append(BeautifulSoup(' '.join(temp), 'html.parser'))
+            temp = []
 
-            # Append the para list if it is non-empty
-            if len(p_list) > 0:
-                output.append(' '.join(p_list))
-
-            # Reset the para list
-            p_list = []
+    # Final check
+    if temp:
+        temp = [str(i) for i in temp]
+        output.append(BeautifulSoup(' '.join(temp), 'html.parser'))
 
     if len(output) == 0:
         return []
+    print(output)
+    return check_list_for_verbs(output, nlp)
 
-    return check_list_for_verbs(output)
 
-
-def process_p_tag(text):
+def process_p_tag(text, nlp):
     """
     Process job descriptions using p tags. Extracting out text preceeded a verb
 
@@ -322,12 +318,7 @@ def process_p_tag(text):
         List of extracted text, post-processed by check_list_for_verbs(list_elements)
     """
     # Extract all lists in the HTML with a paragraph tag (<p>)
-    # Regex explanation:
-    # (?=<p>) is the lookahead for the <p> tag
-    # .* captures everything between the tags, ? restricts it to capturing one set only
-    # (?<=</p>) is the lookbehind for the </p> tag
-    para_pattern = re.compile(r'(?=<p>).*?(?<=</p>)')
-    para_elements = para_pattern.findall(text)
+    para_elements = BeautifulSoup(test, 'html.parser').find_all('p')
 
     if len(para_elements) == 0:
         return []
@@ -338,12 +329,14 @@ def process_p_tag(text):
     for para_element in para_elements:
 
         # Remove all the HTML tags and check if the first word is a verb
-        para_element_cleaned = re.sub(r"[^\w\s]", "", re.sub(r'<.*?>', '', para_element)).strip()
+        para_element_cleaned = re.sub(r"[^\w\s]", "", re.sub(
+            r'<.*?>', '', str(para_element))).strip()
         if len(para_element_cleaned) > 0:
-            if check_if_first_word_is_verb(para_element_cleaned):
+            if check_if_first_word_is_verb(para_element_cleaned, nlp):
                 output.append(para_element)
 
-    return " ".join(output)
+    return output
+
 
 def process_text(raw_text):
     """
