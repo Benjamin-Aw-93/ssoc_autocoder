@@ -303,7 +303,7 @@ def process_p_list(text, nlp):
 
     if len(output) == 0:
         return []
-    print(output)
+
     return check_list_for_verbs(output, nlp)
 
 
@@ -318,7 +318,7 @@ def process_p_tag(text, nlp):
         List of extracted text, post-processed by check_list_for_verbs(list_elements)
     """
     # Extract all lists in the HTML with a paragraph tag (<p>)
-    para_elements = BeautifulSoup(test, 'html.parser').find_all('p')
+    para_elements = BeautifulSoup(text, 'html.parser').find_all('p')
 
     if len(para_elements) == 0:
         return []
@@ -335,7 +335,42 @@ def process_p_tag(text, nlp):
             if check_if_first_word_is_verb(para_element_cleaned, nlp):
                 output.append(para_element)
 
-    return output
+    output = [str(out) for out in output]
+
+    return ' '.join(output)
+
+
+def final_cleaning(processed_text):
+    """
+    """
+    # Since text is a BS tag, cast it back into a string
+    processed_text = str(processed_text)
+
+    # Using regex, we remove all possible tags
+    # Tags without slashes are replaced with spaces
+    # Tags with slashes are replaces with period
+    processed_text = re.sub('</.*?>', '.', processed_text)
+    processed_text = re.sub('<.*?>', ' ', processed_text)
+
+    # To get proper text, we split the text up and join it back again
+    processed_text = ' '.join(processed_text.split())
+
+    # Remove any special characters
+    processed_text = re.sub('\u2022|\u002d|\u00b7|\d+\.*', '.', processed_text)
+
+    # Remove if paragraph starts with punctuation
+    processed_text = re.sub('^\s*[?.,!]\s*', '', processed_text)
+
+    # If there are spaces betweens periods, remove them
+    processed_text = re.sub('(?<=\.)\s*(?=\.)', '', processed_text)
+
+    # If there are spaces between character and punctuation, remove them
+    processed_text = re.sub('(?<=\w)\s*(?=[?.,!])', '', processed_text)
+
+    # If there are multiple periods, replace wtith one
+    processed_text = re.sub('\.+', '.', processed_text)
+
+    return processed_text
 
 
 def process_text(raw_text):
@@ -351,19 +386,19 @@ def process_text(raw_text):
     # Remove problematic characters
     text = clean_raw_string(raw_text)
 
-    li_results = process_li_tag(text)
-    p_list_results = process_p_list(raw_text)
-    p_results = process_p_tag(text)
+    li_results = process_li_tag(text, nlp)
+    p_list_results = process_p_list(raw_text, nlp)
+    p_results = process_p_tag(text, nlp)
 
     if len(li_results) > 0:
         print('List object detected')
-        return li_results
+        return final_cleaning(li_results)
     elif len(p_list_results) > 0:
         print('Paragraph list detected')
-        return p_list_results
+        return final_cleaning(p_list_results)
     elif len(p_results) > 0:
         print('Paragraphs detected')
-        return p_results
+        return final_cleaning(p_results)
     else:
         print('None detected, returning all')
         return re.sub('<.*?>', ' ', text)
