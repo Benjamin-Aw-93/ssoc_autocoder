@@ -127,7 +127,7 @@ def check_list_for_verbs(list_elements, nlp):
     Check list for verbs after extracting text text based on each method below
 
     Parameters:
-        list_elements [str]: list of text produced by each function
+        list_elements [str]: list of bs4 tags produced by each function
 
     Returns:
         list of text of maximum verb score, else empty list
@@ -137,7 +137,6 @@ def check_list_for_verbs(list_elements, nlp):
 
     # Iterate through each of the list elements passed in
     for list_element in list_elements:
-
         # Use bs4 to split up the list into items
         # Note this depends on whether the list elements
         # passed in are lists (ol/ul) or paragraph lists (p)
@@ -268,6 +267,13 @@ def process_li_tag(text, nlp):
     return check_list_for_verbs(list_elements, nlp)
 
 
+text = '''<ul>
+<li>Diploma in Accounting or Finance related area (or equivalent certification)</li>
+</ul>'''
+
+process_li_tag(text, nlp)
+
+
 def process_p_list(text, nlp):
     """
     Process job descriptions using p tags. Extracting out text preceeded by literal bulletpoints or numeric points.
@@ -342,6 +348,13 @@ def process_p_tag(text, nlp):
 
 def final_cleaning(processed_text):
     """
+    Process extracted text final cleaning
+
+    Prarmeters:
+        processed_text (str, BS Tag) : Extacted text from each extraction function
+
+    Returns:
+        Final string that is cleaned
     """
     # Since text is a BS tag, cast it back into a string
     processed_text = str(processed_text)
