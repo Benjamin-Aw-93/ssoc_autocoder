@@ -15,11 +15,16 @@ def nlp():
 
 @pytest.fixture
 def test_verb_check_txt():
-    with open('test.txt') as f:
+    with open('test_ssoc_autocoder/test.txt') as f:
         text = json.load(f)
         text_out = text['test_verb_check']
         return text_out
 
+@pytest.fixture
+def integration_test_cases():
+    with open('test_ssoc_autocoder/integration_test_cases.json') as f:
+        integration_test_cases = json.load(f)
+    return integration_test_cases
 
 def test_remove_prefix():
 
@@ -80,7 +85,6 @@ def test_clean_html_unicode():
     # Test combination
     assert clean_html_unicode('<ol class = "new-list">2. test %5$ & ! </ol>') == "test 5"
 
-
 def test_check_list_for_verbs(nlp, test_verb_check_txt):
 
     # Test ul/ol tags
@@ -114,6 +118,11 @@ def test_check_list_for_verbs(nlp, test_verb_check_txt):
     text_lst_2 = [BeautifulSoup(text1, 'html.parser').find('ul')]
 
     assert check_list_for_verbs(text_lst_2, nlp) == []
+
+def test_process_text(integration_test_cases):
+    
+    for test_case in integration_test_cases:
+        assert process_text(test_case['input']) == test_case['output']
 
 
 if __name__ == '__main__':
