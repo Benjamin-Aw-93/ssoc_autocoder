@@ -369,42 +369,46 @@ def final_cleaning(processed_text):
     processed_text = re.sub('&nbsp', ' ', processed_text)
 
     # Replace ’ with '
-    processed_text = re.sub('\u2019|\u2018', '\'', processed_text)
+<< << << < HEAD
+processed_text = re.sub('\u2019|\u2018', '\'', processed_text)
+== == == =
+processed_text = re.sub('\u2019', '\'', processed_text)
+>>>>>> > ba0a9a825e3b681110fb38057f878d345d6e72f6
 
-    # Remove inproper use of ;
-    processed_text = re.sub(';', '.', processed_text)
+# Remove inproper use of ;
+processed_text = re.sub(';', '.', processed_text)
 
-    # Using regex, we remove all possible tags
-    # Tags without slashes are replaced with spaces
-    # Tags with slashes are replaces with period
-    processed_text = re.sub('</.*?>', '.', processed_text)
-    processed_text = re.sub('<.*?>', '\n', processed_text)
+# Using regex, we remove all possible tags
+# Tags without slashes are replaced with spaces
+# Tags with slashes are replaces with period
+processed_text = re.sub('</.*?>', '.', processed_text)
+processed_text = re.sub('<.*?>', '\n', processed_text)
 
-    # Remove any special characters at the beginning of each statement
-    processed_text = re.sub('(?<=\n)(\u2022|\u002d|\u00b7|\d+\.*)', '.', processed_text)
+# Remove any special characters at the beginning of each statement
+processed_text = re.sub('(?<=\n)(\u2022|\u002d|\u00b7|\d+\.*)', '.', processed_text)
 
-    # To get proper text, we split the text up and join it back again
-    processed_text = ' '.join(processed_text.split())
+# To get proper text, we split the text up and join it back again
+processed_text = ' '.join(processed_text.split())
 
-    # Remove if paragraph starts with punctuation
-    processed_text = re.sub('^\s*[?.,!]\s*', '', processed_text)
+# Remove if paragraph starts with punctuation
+processed_text = re.sub('^\s*[?.,!]\s*', '', processed_text)
 
-    # If there are spaces betweens periods, remove them
-    processed_text = re.sub('(?<=\.)\s*(?=\.)', '', processed_text)
+# If there are spaces betweens periods, remove them
+processed_text = re.sub('(?<=\.)\s*(?=\.)', '', processed_text)
 
-    # If there are spaces between character and punctuation, remove them
-    processed_text = re.sub('(?<=\w)\s*(?=[?.,!])', '', processed_text)
+# If there are spaces between character and punctuation, remove them
+processed_text = re.sub('(?<=\w)\s*(?=[?.,!])', '', processed_text)
 
-    # If there are multiple periods, replace with only one
-    processed_text = re.sub('\.+', '.', processed_text)
+# If there are multiple periods, replace with only one
+processed_text = re.sub('\.+', '.', processed_text)
 
-    # Split by period, if there is only one character in the entry, fitler them out
-    processed_text = '.'.join([i if len(i.split()) > 1 else '' for i in processed_text.split('.')])
+# Split by period, if there is only one character in the entry, fitler them out
+processed_text = '.'.join([i if len(i.split()) > 1 else '' for i in processed_text.split('.')])
 
-    # If there are multiple periods, replace with only one
-    processed_text = re.sub('\.+', '.', processed_text)
+# If there are multiple periods, replace with only one
+processed_text = re.sub('\.+', '.', processed_text)
 
-    return processed_text
+return processed_text
 
 
 def text_length_less_than(text, length):
