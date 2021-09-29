@@ -359,17 +359,32 @@ def final_cleaning(processed_text):
     # Since text is a BS tag, cast it back into a string
     processed_text = str(processed_text)
 
+    # Replace any <br> tags as fullstops
+    processed_text = re.sub('<br>', '.', processed_text)
+
+    # Replace any &amp;
+    processed_text = re.sub('&amp;', '&', processed_text)
+
+    # Replace any &nbsp;
+    processed_text = re.sub('&nbsp', ' ', processed_text)
+
+    # Replace ’ with '
+    processed_text = re.sub('\u2019|\u2018', '\'', processed_text)
+
+    # Remove inproper use of ;
+    processed_text = re.sub(';', '.', processed_text)
+
     # Using regex, we remove all possible tags
     # Tags without slashes are replaced with spaces
     # Tags with slashes are replaces with period
     processed_text = re.sub('</.*?>', '.', processed_text)
-    processed_text = re.sub('<.*?>', ' ', processed_text)
+    processed_text = re.sub('<.*?>', '\n', processed_text)
+
+    # Remove any special characters at the beginning of each statement
+    processed_text = re.sub('(?<=\n)(\u2022|\u002d|\u00b7|\d+\.*)', '.', processed_text)
 
     # To get proper text, we split the text up and join it back again
     processed_text = ' '.join(processed_text.split())
-
-    # Remove any special characters
-    processed_text = re.sub('\u2022|\u002d|\u00b7|\d+\.*', '.', processed_text)
 
     # Remove if paragraph starts with punctuation
     processed_text = re.sub('^\s*[?.,!]\s*', '', processed_text)
@@ -380,10 +395,35 @@ def final_cleaning(processed_text):
     # If there are spaces between character and punctuation, remove them
     processed_text = re.sub('(?<=\w)\s*(?=[?.,!])', '', processed_text)
 
-    # If there are multiple periods, replace wtith one
+    # If there are multiple periods, replace with only one
+    processed_text = re.sub('\.+', '.', processed_text)
+
+    # Split by period, if there is only one character in the entry, fitler them out
+    processed_text = '.'.join([i if len(i.split()) > 1 else '' for i in processed_text.split('.')])
+
+    # If there are multiple periods, replace with only one
     processed_text = re.sub('\.+', '.', processed_text)
 
     return processed_text
+
+
+def text_length_less_than(text, length):
+    """
+    Function to check string length
+
+    Prarmeters:
+        text (str): Text of interest
+        length (int): Minimum length of acceptable text
+
+    Returns:
+        True if text length is below length, otherwise False
+    """
+    text = final_cleaning(text)
+
+    if len(re.findall(r'\w+', text)) < length:
+        return True
+
+    return False
 
 
 def process_text(raw_text):
@@ -398,20 +438,42 @@ def process_text(raw_text):
     """
     # Remove problematic characters
     text = clean_raw_string(raw_text)
+    # Critera for text length,
+    min_length = 100
+
+    # Check if text length is smaller than min_length, if true return orginal text without any cleaning
+    if text_length_less_than(text, min_length):
+        print(f'Text length below {min_length}. Return cleaned original text.')
+        return final_cleaning(text)
 
     li_results = process_li_tag(text, nlp)
     p_list_results = process_p_list(raw_text, nlp)
     p_results = process_p_tag(text, nlp)
 
+    # After subsetting, we relax the min lenght criteria
+    filt_min_length = 50
+
     if len(li_results) > 0:
         print('List object detected')
+        if text_length_less_than(li_results, filt_min_length):
+            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(li_results)
+
     elif len(p_list_results) > 0:
         print('Paragraph list detected')
+        if text_length_less_than(p_list_results, filt_min_length):
+            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(p_list_results)
+
     elif len(p_results) > 0:
         print('Paragraphs detected')
+        if text_length_less_than(p_results, filt_min_length):
+            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(p_results)
+
     else:
         print('None detected, returning all')
-        return re.sub('<.*?>', ' ', text)
+        return final_cleaning(re.sub('<.*?>', ' ', text))
