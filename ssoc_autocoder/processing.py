@@ -359,17 +359,32 @@ def final_cleaning(processed_text):
     # Since text is a BS tag, cast it back into a string
     processed_text = str(processed_text)
 
+    # Replace any <br> tags as fullstops
+    processed_text = re.sub('<br>', '.', processed_text)
+
+    # Replace any &amp;
+    processed_text = re.sub('&amp;', '&', processed_text)
+
+    # Replace any &nbsp;
+    processed_text = re.sub('&nbsp', ' ', processed_text)
+
+    # Replace ’ with '
+    processed_text = re.sub('\u2019', '\'', processed_text)
+
+    # Remove inproper use of ;
+    processed_text = re.sub(';', '.', processed_text)
+
     # Using regex, we remove all possible tags
     # Tags without slashes are replaced with spaces
     # Tags with slashes are replaces with period
     processed_text = re.sub('</.*?>', '.', processed_text)
-    processed_text = re.sub('<.*?>', ' ', processed_text)
+    processed_text = re.sub('<.*?>', '\n', processed_text)
+
+    # Remove any special characters at the beginning of each statement
+    processed_text = re.sub('(?<=\n)(\u2022|\u002d|\u00b7|\d+\.*)', '.', processed_text)
 
     # To get proper text, we split the text up and join it back again
     processed_text = ' '.join(processed_text.split())
-
-    # Remove any special characters
-    processed_text = re.sub('\u2022|\u002d|\u00b7|\d+\.*', '.', processed_text)
 
     # Remove if paragraph starts with punctuation
     processed_text = re.sub('^\s*[?.,!]\s*', '', processed_text)
@@ -380,10 +395,52 @@ def final_cleaning(processed_text):
     # If there are spaces between character and punctuation, remove them
     processed_text = re.sub('(?<=\w)\s*(?=[?.,!])', '', processed_text)
 
-    # If there are multiple periods, replace wtith one
+    # If there are multiple periods, replace with only one
+    processed_text = re.sub('\.+', '.', processed_text)
+
+    # Split by period, if there is only one character in the entry, fitler them out
+    processed_text = '.'.join([i if len(i.split()) > 1 else '' for i in processed_text.split('.')])
+
+    # If there are multiple periods, replace with only one
     processed_text = re.sub('\.+', '.', processed_text)
 
     return processed_text
+
+
+text = '''
+<p>Quickly learn and maintain an understanding of existing and new services and products offered by Ugene Lab to customers;</p>
+<ul>
+  <li>Support the sales strategy that grows Ugene Lab's existing customer base while helping to acquire new customers;</li>
+  <li>Proactively call potential new customers to sell and promote Ugene Lab's services and products;</li>
+  <li>Frequently call existing customers to upsell Ugene Lab's services and products;</li>
+  <li>Creat a list of customer prospects that can be used to track sales calls and customer contacts;</li>
+  <li>On a timely basis, prepare accurate quotations for customers;</li>
+  <li>Develop new relationships with prospective customers while maintaining existing customer relationships; and</li>
+  <li>Frequently engage customers to retain and proactively manage renewal of customer contracts.</li>
+</ul>
+'''
+
+
+final_cleaning(text)
+
+
+def text_length_less_than(text, length):
+    """
+    Function to check string length
+
+    Prarmeters:
+        text (str): Text of interest
+        length (int): Minimum length of acceptable text
+
+    Returns:
+        True if text length is below length, otherwise False
+    """
+    text = final_cleaning(text)
+
+    if len(re.findall(r'\w+', text)) < length:
+        return True
+
+    return False
 
 
 def process_text(raw_text):
@@ -398,20 +455,80 @@ def process_text(raw_text):
     """
     # Remove problematic characters
     text = clean_raw_string(raw_text)
+    # Critera for text length,
+    min_length = 100
+
+    # Check if text length is smaller than min_length, if true return orginal text without any cleaning
+    if text_length_less_than(text, min_length):
+        print(f'Text length below {min_length}. Return cleaned original text.')
+        return final_cleaning(text)
 
     li_results = process_li_tag(text, nlp)
     p_list_results = process_p_list(raw_text, nlp)
     p_results = process_p_tag(text, nlp)
 
+    # After subsetting, we relax the min lenght criteria
+    filt_min_length = 50
+
     if len(li_results) > 0:
         print('List object detected')
+        if text_length_less_than(li_results, filt_min_length):
+            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(li_results)
+
     elif len(p_list_results) > 0:
         print('Paragraph list detected')
+        if text_length_less_than(p_list_results, filt_min_length):
+            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(p_list_results)
+
     elif len(p_results) > 0:
         print('Paragraphs detected')
+        if text_length_less_than(p_results, filt_min_length):
+            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(p_results)
+
     else:
         print('None detected, returning all')
-        return re.sub('<.*?>', ' ', text)
+        return final_cleaning(re.sub('<.*?>', ' ', text))
+
+
+process_text('''<ul>
+  <li>Monitor processes through SCADA and HMI system</li>
+  <li>Control and manage the operations through DCS</li>
+  <li>Perform field work operations complying to EHS requirement and conforming to SOP</li>
+  <li>Perform analysis, troubleshoot and minor maintenance works</li>
+  <li>Feedback and initiate continual improvement to work processes</li>
+  <li>Start up and shutdown plant as and when required</li>
+</ul>
+<p><strong>Specification:</strong></p>
+<ul>
+  <li>Full NITEC with minimum 5 years working experience or Diploma with minimum 3 years working experience in a process plant</li>
+  <li>Experience in operating SCADA, HMI and DCS</li>
+  <li>Forklift driving license preferred</li>
+  <li>Discipline, mature and self-motivated team player</li>
+  <li>Hands-on with strong ownership</li>
+  <li>Must be able to work 12 hours rotating shifts, and perform overtime when needed</li>
+  <li>Remuneration: Basic salary: S$1,700 – S$1,900</li>
+  <li>Working Hours: Morning shift: 8am to 8pm; Night shift: 8pm to 8am</li>
+  <li>Company Transport/Transport Allowance if candidate possess own transport</li>
+</ul>
+<p><strong>Job ID: VY957R</strong></p>
+<p><br></p>
+<p><strong>All Successful candidates can expect a very competitive remuneration package and a comprehensive range of benefits.</strong></p>
+<p><br></p>
+<p>Kindly email your resume in a detailed Word format to&nbsp; <strong>pp+candidate+jvy957r@mail.manatal.com</strong></p>
+<p><br></p>
+<p>We regret that only shortlisted candidates will be notified</p>
+<p><br></p>
+<p><strong>People Profilers Pte Ltd</strong></p>
+<p>11 Collyer Quay, The Arcade, #13-01, Singapore 049317</p>
+<p>Tel:&nbsp; 69509745</p>
+<p>Email : gesse.tan@peopleprofilers.com</p>
+<p><br></p>
+<p>EA Licence Number: 02C4944</p>
+<p>EA Registration Number: R1108448</p>
+<p>EA Personnel: Tan Lili Gesse</p>''')
