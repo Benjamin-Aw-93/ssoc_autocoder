@@ -13,7 +13,7 @@ def nlp():
 # On hold until we develop the full testing suite
 @pytest.fixture
 def test_verb_check_txt():
-    with open('functional_test.json') as f:
+    with open('test_ssoc_autocoder/functional_test.json') as f:
         text = json.load(f)
         text_out = text['test_verb_check']
         return text_out
@@ -21,7 +21,7 @@ def test_verb_check_txt():
 
 @pytest.fixture
 def integration_test_cases():
-    with open('integration_test_cases.json') as f:
+    with open('test_ssoc_autocoder/integration_test_cases.json') as f:
         integration_test_cases = json.load(f)
     return integration_test_cases
 

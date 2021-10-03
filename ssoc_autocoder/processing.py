@@ -399,16 +399,13 @@ def final_cleaning(processed_text):
     # If there are multiple periods, replace with only one
     processed_text = re.sub('\.+', '.', processed_text)
 
-    # If there are multiple periods, replace with only one
-    processed_text = re.sub('\.+', '.', processed_text)
-
     # If there are comma followed by a period, replace with the former
     processed_text = re.sub('(?<=[^A-Za-z0-9\s])\.', '', processed_text)
 
     # If there is a full stop followed by a lower case character, then is probably part of the sentence
     processed_text = re.sub('\.\s*(?=[a-z])', ' ', processed_text)
 
-    # Split by period, if there is only one character in the entry, fitler them out
+    # Split by period, if there is only one character in the entry, filter them out
     processed_text = '.'.join([i for i in processed_text.split('.') if len(i.split()) > 1])
 
     # Remove beginning white space if present. Adding period at the end
@@ -454,7 +451,7 @@ def process_text(raw_text):
 
     # Check if text length is smaller than min_length, if true return orginal text without any cleaning
     if text_length_less_than(text, min_length):
-        print(f'Text length below {min_length}. Return cleaned original text.')
+        #print(f'Text length below {min_length}. Return cleaned original text.')
         return final_cleaning(text)
 
     li_results = process_li_tag(text, nlp)
@@ -465,26 +462,26 @@ def process_text(raw_text):
     filt_min_length = 50
 
     if len(li_results) > 0:
-        print('List object detected')
+        #print('List object detected')
         if text_length_less_than(li_results, filt_min_length):
-            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
             return final_cleaning(text)
         return final_cleaning(li_results)
 
     elif len(p_list_results) > 0:
-        print('Paragraph list detected')
+        #print('Paragraph list detected')
         if text_length_less_than(p_list_results, filt_min_length):
-            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
             return final_cleaning(text)
         return final_cleaning(p_list_results)
 
     elif len(p_results) > 0:
-        print('Paragraphs detected')
+        #print('Paragraphs detected')
         if text_length_less_than(p_results, filt_min_length):
-            print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
             return final_cleaning(text)
         return final_cleaning(p_results)
 
     else:
-        print('None detected, returning all')
+        #print('None detected, returning all')
         return final_cleaning(re.sub('<.*?>', ' ', text))
