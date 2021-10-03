@@ -3,22 +3,27 @@ from ssoc_autocoder.processing import *
 import spacy
 import json
 
+
 # Loading the spacy object as a pytest fixture
-
-
 @pytest.fixture
 def nlp():
     return spacy.load('en_core_web_lg')
 
+
 # On hold until we develop the full testing suite
-
-
 @pytest.fixture
 def test_verb_check_txt():
-    with open('test.txt') as f:
+    with open('test_ssoc_autocoder/functional_test.json') as f:
         text = json.load(f)
         text_out = text['test_verb_check']
         return text_out
+
+
+@pytest.fixture
+def integration_test_cases():
+    with open('test_ssoc_autocoder/integration_test_cases.json') as f:
+        integration_test_cases = json.load(f)
+    return integration_test_cases
 
 
 def test_remove_prefix():
@@ -52,9 +57,8 @@ def test_clean_raw_string():
 
     # Testing the removal of undesired characters
     assert clean_raw_string('hello \n this is a test') == 'hello  this is a test'
-    assert clean_raw_string('hello \n&nbsp; this is&nbsp; a test&nbsp;') == 'hello  this is a test'
     assert clean_raw_string(
-        '\thello&rsquo;&rsquo; \n\t\xa0 this&amp; is\xa0 a test\t') == 'hello  this is a test'
+        '\thello \n\t\xa0 this is\xa0 a test\t') == 'hello  this is a test'
 
     # Testing the replacement of known contractions
     assert clean_raw_string('hello \n this is No. 1 test') == 'hello  this is Number 1 test'
@@ -114,6 +118,12 @@ def test_check_list_for_verbs(nlp, test_verb_check_txt):
     text_lst_2 = [BeautifulSoup(text1, 'html.parser').find('ul')]
 
     assert check_list_for_verbs(text_lst_2, nlp) == []
+
+
+def test_process_text(integration_test_cases):
+
+    for test_case in integration_test_cases:
+        assert process_text(test_case['input']) == test_case['output']
 
 
 if __name__ == '__main__':

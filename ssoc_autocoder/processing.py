@@ -1,4 +1,5 @@
 # import packages
+import json
 import re
 import copy
 from bs4 import BeautifulSoup
@@ -58,42 +59,14 @@ def check_if_first_word_is_verb(string, nlp):
         return True
 
     # If the first two words are "you are", we truncate it
-    string = remove_prefix(string.lower(), ['you are'])
+    string = remove_prefix(string.lower(), ['you are', 'are you'])
+
+    # If trucation turns string empty, then return false
+    if len(string) == 0:
+        return False
 
     # Check if the first word is a verb
     return nlp(string)[0].pos_ == 'VERB'
-
-
-def clean_raw_string(string):
-    """
-    Cleans the raw text from problematic strings or abbreviations
-
-    Parameters:
-        string (str): Text to clean for
-
-    Returns:
-        Cleaned text without problematic strings or abbreviations
-    """
-
-    # Identify some common problematic strings to remove
-    to_remove = ['\n', '\xa0', '&nbsp;', '&amp;', '\t', '&rsquo;']
-
-    # Remove these strings
-    for item in to_remove:
-        string = string.replace(item, '')
-
-    # Identify some common abbreviations to replace
-    to_replace = [('No.', 'Number')]
-
-    # Replace these strings
-    for item1, item2 in to_replace:
-        string = string.replace(item1, item2)
-
-    # Remove all non-unicode characters
-    # Deprecated due to reliance on bullet points
-    # string = ''.join([i if ord(i) < 128 else ' ' for i in string])
-
-    return string
 
 
 def clean_html_unicode(string):
@@ -267,13 +240,6 @@ def process_li_tag(text, nlp):
     return check_list_for_verbs(list_elements, nlp)
 
 
-text = '''<ul>
-<li>Diploma in Accounting or Finance related area (or equivalent certification)</li>
-</ul>'''
-
-process_li_tag(text, nlp)
-
-
 def process_p_list(text, nlp):
     """
     Process job descriptions using p tags. Extracting out text preceeded by literal bulletpoints or numeric points.
@@ -337,6 +303,7 @@ def process_p_tag(text, nlp):
         # Remove all the HTML tags and check if the first word is a verb
         para_element_cleaned = re.sub(r"[^\w\s]", "", re.sub(
             r'<.*?>', '', str(para_element))).strip()
+
         if len(para_element_cleaned) > 0:
             if check_if_first_word_is_verb(para_element_cleaned, nlp):
                 output.append(para_element)
@@ -344,6 +311,34 @@ def process_p_tag(text, nlp):
     output = [str(out) for out in output]
 
     return ' '.join(output)
+
+
+def clean_raw_string(string):
+    """
+    Cleans the raw text from problematic strings or abbreviations
+
+    Parameters:
+        string (str): Text to clean for
+
+    Returns:
+        Cleaned text without problematic strings or abbreviations
+    """
+
+    # Identify some common problematic strings to remove
+    to_remove = ['\n', '\xa0', '\t', '']
+
+    # Remove these strings
+    for item in to_remove:
+        string = string.replace(item, '')
+
+    # Identify some common abbreviations to replace
+    to_replace = [('No.', 'Number')]
+
+    # Replace these strings
+    for item1, item2 in to_replace:
+        string = string.replace(item1, item2)
+
+    return string
 
 
 def final_cleaning(processed_text):
@@ -359,17 +354,38 @@ def final_cleaning(processed_text):
     # Since text is a BS tag, cast it back into a string
     processed_text = str(processed_text)
 
+    # Replace any <br> tags as fullstops
+    processed_text = re.sub('<br>', '.', processed_text)
+
+    # Replace any &amp;
+    processed_text = re.sub('&amp;', '&', processed_text)
+
+    # Replace any &nbsp;
+    processed_text = re.sub('&nbsp;', ' ', processed_text)
+
+    # Replace any &rsquo; and &lsquo;
+    processed_text = re.sub('&rsquo;|&lsquo;', '\'', processed_text)
+
+    # Replace any &ldquo; and &rdquo;
+    processed_text = re.sub('&ldquo;|&rdquo;', '\'', processed_text)
+
+    # Replace ’ with '
+    processed_text = re.sub('\u2019|\u2018', '\'', processed_text)
+
+    # Remove any special characters at the beginning of each statement
+    processed_text = re.sub('(?<=>)\s*(\u2022|\u002d|\u00b7|\d+\.)', '.', processed_text)
+
     # Using regex, we remove all possible tags
-    # Tags without slashes are replaced with spaces
     # Tags with slashes are replaces with period
+    # Tags without slashes are replaced with spaces
     processed_text = re.sub('</.*?>', '.', processed_text)
     processed_text = re.sub('<.*?>', ' ', processed_text)
 
+    # Remove inproper use of ;
+    processed_text = re.sub(';', '.', processed_text)
+
     # To get proper text, we split the text up and join it back again
     processed_text = ' '.join(processed_text.split())
-
-    # Remove any special characters
-    processed_text = re.sub('\u2022|\u002d|\u00b7|\d+\.*', '.', processed_text)
 
     # Remove if paragraph starts with punctuation
     processed_text = re.sub('^\s*[?.,!]\s*', '', processed_text)
@@ -380,10 +396,41 @@ def final_cleaning(processed_text):
     # If there are spaces between character and punctuation, remove them
     processed_text = re.sub('(?<=\w)\s*(?=[?.,!])', '', processed_text)
 
-    # If there are multiple periods, replace wtith one
+    # If there are multiple periods, replace with only one
     processed_text = re.sub('\.+', '.', processed_text)
 
+    # If there are comma followed by a period, replace with the former
+    processed_text = re.sub('(?<=[^A-Za-z0-9\s])\.', '', processed_text)
+
+    # If there is a full stop followed by a lower case character, then is probably part of the sentence
+    processed_text = re.sub('\.\s*(?=[a-z])', ' ', processed_text)
+
+    # Split by period, if there is only one character in the entry, filter them out
+    processed_text = '.'.join([i for i in processed_text.split('.') if len(i.split()) > 1])
+
+    # Remove beginning white space if present. Adding period at the end
+    processed_text = processed_text.strip() + '.'
+
     return processed_text
+
+
+def text_length_less_than(text, length):
+    """
+    Function to check string length
+
+    Prarmeters:
+        text (str): Text of interest
+        length (int): Minimum length of acceptable text
+
+    Returns:
+        True if text length is below length, otherwise False
+    """
+    text = final_cleaning(text)
+
+    if len(re.findall(r'\w+', text)) < length:
+        return True
+
+    return False
 
 
 def process_text(raw_text):
@@ -399,19 +446,42 @@ def process_text(raw_text):
     # Remove problematic characters
     text = clean_raw_string(raw_text)
 
+    # Critera for text length,
+    min_length = 100
+
+    # Check if text length is smaller than min_length, if true return orginal text without any cleaning
+    if text_length_less_than(text, min_length):
+        #print(f'Text length below {min_length}. Return cleaned original text.')
+        return final_cleaning(text)
+
     li_results = process_li_tag(text, nlp)
-    p_list_results = process_p_list(raw_text, nlp)
+    p_list_results = process_p_list(text, nlp)
     p_results = process_p_tag(text, nlp)
 
+    # After subsetting, we relax the min length criteria
+    filt_min_length = 50
+
     if len(li_results) > 0:
-        print('List object detected')
+        #print('List object detected')
+        if text_length_less_than(li_results, filt_min_length):
+            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(li_results)
+
     elif len(p_list_results) > 0:
-        print('Paragraph list detected')
+        #print('Paragraph list detected')
+        if text_length_less_than(p_list_results, filt_min_length):
+            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(p_list_results)
+
     elif len(p_results) > 0:
-        print('Paragraphs detected')
+        #print('Paragraphs detected')
+        if text_length_less_than(p_results, filt_min_length):
+            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            return final_cleaning(text)
         return final_cleaning(p_results)
+
     else:
-        print('None detected, returning all')
-        return re.sub('<.*?>', ' ', text)
+        #print('None detected, returning all')
+        return final_cleaning(re.sub('<.*?>', ' ', text))
