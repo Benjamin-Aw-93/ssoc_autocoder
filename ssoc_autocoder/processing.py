@@ -4,13 +4,22 @@ import re
 import copy
 from bs4 import BeautifulSoup
 from utils import verboseprint
+import sys
 
 # load spacy object: To remove after testing
 import spacy
 nlp = spacy.load('en_core_web_lg')
 
-# Load verbosity ideally should load in command line
-verbosity = False
+# Load verbosity ideally should load in command line, write as -v tag in cmd
+# Should load load at the start of the script
+if (len(sys.argv) == 0):
+    verbosity = True  # Default verbosity
+else:
+    if '-v' in sys.argv:
+        verbosity = True
+    else:
+        verbosity = False
+
 verboseprinter = verboseprint(verbosity)
 
 
