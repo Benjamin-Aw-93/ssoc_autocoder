@@ -1,6 +1,20 @@
 import pandas as pd
 import numpy as np
 
+
+def verboseprint(verbose=True):
+    """
+    Allow verbosity for printing out functions
+
+    Parameter:
+        verbose (Boolean): Defaulted to True
+
+    Returns:
+        function with to print or not to print
+    """
+    return print if verbose else lambda *a, **k: None
+
+
 def processing_raw_data(filename, *colnames):
     """
     Processes the raw dataset into the right data structure
