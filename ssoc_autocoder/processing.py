@@ -3,7 +3,7 @@ import json
 import re
 import copy
 from bs4 import BeautifulSoup
-from utils import verboseprint
+from .utils import verboseprint
 import sys
 
 # load spacy object: To remove after testing
@@ -272,7 +272,7 @@ def process_p_list(text, nlp):
 
     # Extract consecutive list of para
     for para in soup.select('p'):
-        if re.match('^ *(\u2022|\u002d|\u00b7|\d+\.*)', str(para.contents[0])):
+        if para.contents and re.match('^ *(\u2022|\u002d|\u00b7|\d+\.*)', str(para.contents[0])):
             # If match a bullet point or numeric numbering
             temp.append(para)
         else:
@@ -338,12 +338,19 @@ def clean_raw_string(string):
         Cleaned text without problematic strings or abbreviations
     """
 
+    # Identify some common problematic strings to replace with a period
+    to_replace = [r'(?<=>\d)\t']
+
+    # Replace these strings
+    for item in to_replace:
+        string = re.sub(item, '. ', string)
+
     # Identify some common problematic strings to remove
-    to_remove = ['\n', '\xa0', '\t', '']
+    to_remove = [r'\n', r'\xa0', r'\t', '']
 
     # Remove these strings
     for item in to_remove:
-        string = string.replace(item, '')
+        string = re.sub(item, '', string)
 
     # Identify some common abbreviations to replace
     to_replace = [('No.', 'Number')]
