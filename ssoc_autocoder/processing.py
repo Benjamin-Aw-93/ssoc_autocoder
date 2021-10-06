@@ -12,13 +12,7 @@ nlp = spacy.load('en_core_web_lg')
 
 # Load verbosity ideally should load in command line, write as -v tag in cmd
 # Should load load at the start of the script
-if (len(sys.argv) == 0):
-    verbosity = True  # Default verbosity
-else:
-    if '-v' in sys.argv:
-        verbosity = True
-    else:
-        verbosity = False
+verbosity = False  # default value
 
 verboseprinter = verboseprint(verbosity)
 
@@ -472,7 +466,6 @@ def process_text(raw_text):
 
     # Critera for text length,
     min_length = 100
-
     # Check if text length is smaller than min_length, if true return orginal text without any cleaning
     if text_length_less_than(text, min_length):
         verboseprinter(f'Text length below {min_length}. Return cleaned original text.')
