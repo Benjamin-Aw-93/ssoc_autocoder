@@ -3,10 +3,18 @@ import json
 import re
 import copy
 from bs4 import BeautifulSoup
+from .utils import verboseprint
+import sys
 
 # load spacy object: To remove after testing
 import spacy
 nlp = spacy.load('en_core_web_lg')
+
+# Load verbosity ideally should load in command line, write as -v tag in cmd
+# Should load load at the start of the script
+verbosity = False  # default value
+
+verboseprinter = verboseprint(verbosity)
 
 
 def remove_prefix(text, prefixes):
@@ -258,15 +266,20 @@ def process_p_list(text, nlp):
 
     # Extract consecutive list of para
     for para in soup.select('p'):
-        if re.match('^ *(\u2022|\u002d|\u00b7|\d+\.*)', str(para.contents[0])):
-            # If match a bullet point or numeric numbering
-            temp.append(para)
-        else:
-            if temp:
-                # Adding bs tag item
-                temp = [str(i) for i in temp]
-                output.append(BeautifulSoup(' '.join(temp), 'html.parser'))
-            temp = []
+        try:
+            para.contents[0]
+        except IndexError as e:
+            verboseprinter('Empty list detected. Ignored.')
+        finally:
+            if para.contents and re.match('^ *(\u2022|\u002d|\u00b7|\d+\.*)', str(para.contents[0])):
+                # If match a bullet point or numeric numbering
+                temp.append(para)
+            else:
+                if temp:
+                    # Adding bs tag item
+                    temp = [str(i) for i in temp]
+                    output.append(BeautifulSoup(' '.join(temp), 'html.parser'))
+                temp = []
 
     # Final check
     if temp:
@@ -324,12 +337,19 @@ def clean_raw_string(string):
         Cleaned text without problematic strings or abbreviations
     """
 
+    # Identify some common problematic strings to replace with a period
+    to_replace = [r'(?<=>\d)\t']
+
+    # Replace these strings
+    for item in to_replace:
+        string = re.sub(item, '. ', string)
+
     # Identify some common problematic strings to remove
-    to_remove = ['\n', '\xa0', '\t', '']
+    to_remove = [r'\n', r'\xa0', r'\t', '']
 
     # Remove these strings
     for item in to_remove:
-        string = string.replace(item, '')
+        string = re.sub(item, '', string)
 
     # Identify some common abbreviations to replace
     to_replace = [('No.', 'Number')]
@@ -399,13 +419,16 @@ def final_cleaning(processed_text):
     # If there are multiple periods, replace with only one
     processed_text = re.sub('\.+', '.', processed_text)
 
+    # If there are multiple periods, replace with only one
+    processed_text = re.sub('\.+', '.', processed_text)
+
     # If there are comma followed by a period, replace with the former
     processed_text = re.sub('(?<=[^A-Za-z0-9\s])\.', '', processed_text)
 
     # If there is a full stop followed by a lower case character, then is probably part of the sentence
     processed_text = re.sub('\.\s*(?=[a-z])', ' ', processed_text)
 
-    # Split by period, if there is only one character in the entry, filter them out
+    # Split by period, if there is only one character in the entry, fitler them out
     processed_text = '.'.join([i for i in processed_text.split('.') if len(i.split()) > 1])
 
     # Remove beginning white space if present. Adding period at the end
@@ -448,10 +471,9 @@ def process_text(raw_text):
 
     # Critera for text length,
     min_length = 100
-
     # Check if text length is smaller than min_length, if true return orginal text without any cleaning
     if text_length_less_than(text, min_length):
-        #print(f'Text length below {min_length}. Return cleaned original text.')
+        verboseprinter(f'Text length below {min_length}. Return cleaned original text.')
         return final_cleaning(text)
 
     li_results = process_li_tag(text, nlp)
@@ -462,26 +484,26 @@ def process_text(raw_text):
     filt_min_length = 50
 
     if len(li_results) > 0:
-        #print('List object detected')
+        verboseprinter('List object detected')
         if text_length_less_than(li_results, filt_min_length):
-            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            verboseprinter(f'Text length below {filt_min_length}. Return cleaned original text.')
             return final_cleaning(text)
         return final_cleaning(li_results)
 
     elif len(p_list_results) > 0:
-        #print('Paragraph list detected')
+        verboseprinter('Paragraph list detected')
         if text_length_less_than(p_list_results, filt_min_length):
-            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            verboseprinter(f'Text length below {filt_min_length}. Return cleaned original text.')
             return final_cleaning(text)
         return final_cleaning(p_list_results)
 
     elif len(p_results) > 0:
-        #print('Paragraphs detected')
+        verboseprinter('Paragraphs detected')
         if text_length_less_than(p_results, filt_min_length):
-            #print(f'Text length below {filt_min_length}. Return cleaned original text.')
+            verboseprinter(f'Text length below {filt_min_length}. Return cleaned original text.')
             return final_cleaning(text)
         return final_cleaning(p_results)
 
     else:
-        #print('None detected, returning all')
+        verboseprinter('None detected, returning all')
         return final_cleaning(re.sub('<.*?>', ' ', text))
