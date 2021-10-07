@@ -3,7 +3,7 @@ import json
 import re
 import copy
 from bs4 import BeautifulSoup
-from utils import verboseprint
+from .utils import verboseprint
 import sys
 
 # load spacy object: To remove after testing
