@@ -3,7 +3,7 @@ import json
 import re
 import copy
 from bs4 import BeautifulSoup
-from .utils import verboseprint
+from utils import verboseprint
 import sys
 
 # load spacy object: To remove after testing
@@ -266,15 +266,20 @@ def process_p_list(text, nlp):
 
     # Extract consecutive list of para
     for para in soup.select('p'):
-        if para.contents and re.match('^ *(\u2022|\u002d|\u00b7|\d+\.*)', str(para.contents[0])):
-            # If match a bullet point or numeric numbering
-            temp.append(para)
-        else:
-            if temp:
-                # Adding bs tag item
-                temp = [str(i) for i in temp]
-                output.append(BeautifulSoup(' '.join(temp), 'html.parser'))
-            temp = []
+        try:
+            para.contents[0]
+        except IndexError as e:
+            verboseprinter('Empty list detected. Ignored.')
+        finally:
+            if para.contents and re.match('^ *(\u2022|\u002d|\u00b7|\d+\.*)', str(para.contents[0])):
+                # If match a bullet point or numeric numbering
+                temp.append(para)
+            else:
+                if temp:
+                    # Adding bs tag item
+                    temp = [str(i) for i in temp]
+                    output.append(BeautifulSoup(' '.join(temp), 'html.parser'))
+                temp = []
 
     # Final check
     if temp:
