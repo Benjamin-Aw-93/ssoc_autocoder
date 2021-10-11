@@ -516,12 +516,14 @@ if __name__ == "__main__":
     SSOC_2020 = pd.read_csv(os.path.join(args.data_dir, 'SSOC_2020.csv'))
 
     encoding = generate_encoding(SSOC_2020)
-    encoded_data = encode_dataset(data[0:3000], encoding, colnames)
+    encoded_data = encode_dataset(data, encoding, colnames)
     tokenizer = DistilBertTokenizer.from_pretrained(parameters['pretrained_model'])
     training_loader, validation_loader = prepare_data(encoded_data, tokenizer, colnames, parameters)
     model, loss_function, optimizer = prepare_model(encoding, parameters)
 
-    model_path = os.path.join(args.model_dir, 'model.pth')
+    train_model(model, loss_function, optimizer, training_loader, validation_loader, parameters)
+
+    model_path = os.path.join(args.model_dir, 'sm-model-10epoch.pth')
 
     # Move the best model to cpu and resave it
     with open(model_path, 'wb') as f:
