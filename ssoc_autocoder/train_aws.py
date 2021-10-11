@@ -6,10 +6,15 @@ from sklearn.model_selection import train_test_split
 import time
 from datetime import datetime
 
+# Libraries for training on AWS
+import os
+import argparse
+
+os.system('pip install transformers')
+
 # Neural network libraries
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torch.autograd import Variable
 from transformers import DistilBertModel, DistilBertTokenizer, DistilBertForSequenceClassification
 
 def generate_encoding(reference_data, ssoc_colname = 'SSOC 2020'):
@@ -271,7 +276,7 @@ def prepare_model(encoding, parameters):
     model.to(parameters['device'])
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(params = model.parameters(), lr = parameters['learning_rate'])
-    optimizer.zero_grad(set_to_none = True)
+    optimizer.zero_grad()
 
     return model, loss_function, optimizer
 
@@ -460,3 +465,64 @@ def generate_prediction(model,
     print(f"Target: {target}")
     print(f"Model predicted 1D: {predicted_1D} ({predicted_1D_proba * 100:.2f}%)")
     print(f"Model predicted 2D: {predicted_2D} ({predicted_2D_proba * 100:.2f}%)")
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+
+    # hyperparameters sent by the client are passed as command-line arguments to the script.
+    parser.add_argument('--workers', type = int, default = 2)
+    parser.add_argument('--epochs', type = int, default = 10)
+    parser.add_argument('--batch-size', type = int, default = 64)
+    parser.add_argument('--learning-rate', type = float, default = 0.005)
+    parser.add_argument('--use-cuda', type = bool, default = True)
+
+    # Data, model, and output directories
+    parser.add_argument('--output-data-dir', type = str, default = os.environ['SM_OUTPUT_DATA_DIR'])
+    parser.add_argument('--model-dir', type = str, default = os.environ['SM_MODEL_DIR'])
+    parser.add_argument('--data-dir', type = str, default = os.environ['SM_CHANNEL_TRAINING'])
+    #parser.add_argument('--train', type = str, default = os.environ['SM_CHANNEL_TRAIN'])
+    #parser.add_argument('--test', type = str, default = os.environ['SM_CHANNEL_TEST'])
+
+    args, _ = parser.parse_known_args()
+
+    colnames = {
+        'SSOC': 'SSOC 2020',
+        'job_description': 'Cleaned_Description'
+    }
+
+    parameters = {
+        'sequence_max_length': 512,
+        'max_level': 2,
+        'training_batch_size': 32,
+        'validation_batch_size': 32,
+        'epochs': 1,
+        'learning_rate': 0.001,
+        'pretrained_model': 'distilbert-base-uncased',
+        'num_workers': 2,
+        'loss_weights': {
+            'SSOC_1D': 20,
+            'SSOC_2D': 5,
+            'SSOC_3D': 3,
+            'SSOC_4D': 2,
+            'SSOC_5D': 1
+        },
+        'device': 'cuda'
+    }
+
+    #train = pd.read_csv(os.path.join(args.data_dir, 'train-7oct.csv'))
+    #test = pd.read_csv(os.path.join(args.data_dir, 'test-7oct.csv'))
+    data = pd.read_csv(os.path.join(args.data_dir, 'train_full.csv'))
+    SSOC_2020 = pd.read_csv(os.path.join(args.data_dir, 'SSOC_2020.csv'))
+
+    encoding = generate_encoding(SSOC_2020)
+    encoded_data = encode_dataset(data[0:3000], encoding, colnames)
+    tokenizer = DistilBertTokenizer.from_pretrained(parameters['pretrained_model'])
+    training_loader, validation_loader = prepare_data(encoded_data, tokenizer, colnames, parameters)
+    model, loss_function, optimizer = prepare_model(encoding, parameters)
+
+    model_path = os.path.join(args.model_dir, 'model.pth')
+
+    # Move the best model to cpu and resave it
+    with open(model_path, 'wb') as f:
+        torch.save(model.cpu().state_dict(), f)
