@@ -184,9 +184,9 @@ def prepare_data(encoded_data,
     Args:
         encoded_data: pandas dataframe
             Base data with SSOC xD
-        colnames: dictionary
+        colnames: dic
             Column name mappings key: standardized, value: actual naming
-        parameters: dictionary
+        parameters: dic
             Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
 
     Returns:
@@ -476,7 +476,7 @@ def train_model(model,
             Training data in map style torch data format
         validation_loader: torch dataloader
             Validation data in map style torch data format
-        parameters: dictionary
+        parameters: dic
             Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
 
     Returns: None
@@ -638,17 +638,37 @@ def generate_prediction(model,
                         parameters,
                         encoding):
     """
+    Predicting on actual text, comparing with actual 5D SSOC value
 
     Args:
-        model:
-        tokenizer:
-        text:
-        target:
-        parameters:
-        encoding:
+        model:HierarchicalSSOCClassifier
+            NN architecture
+        loss_function: torch object
+            Cross entropy loss function multiclass loss calculation
+        optimizer: torch object
+            Optimization algorithm for stochastic gradient descent
+        training_loader: torch dataloader
+            Training data in map style torch data format
+        validation_loader: torch dataloader
+            Validation data in map style torch data format
+        parameters: dic
+            Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
 
-    Returns:
+    Args:
+        model:HierarchicalSSOCClassifier
+            NN architecture
+        tokenizer: Transformer Tokenizer
+            End to end tokenization
+        text: str
+            Text to predict on
+        target: str
+            5D SSOC value
+        parameters: dic
+            Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
+        encoding: dic
+            Encoding for each SSOC level
 
+    Returns: None
     """
 
     tokenized = tokenizer(
