@@ -12,8 +12,8 @@ from torch.utils.data import Dataset, DataLoader
 from torch.autograd import Variable
 from transformers import DistilBertModel, DistilBertTokenizer, DistilBertForSequenceClassification
 
-def generate_encoding(reference_data, ssoc_colname = 'SSOC 2020'):
 
+def generate_encoding(reference_data, ssoc_colname='SSOC 2020'):
     """
     Generates encoding from SSOC 2020 to indices and vice versa.
 
@@ -22,6 +22,11 @@ def generate_encoding(reference_data, ssoc_colname = 'SSOC 2020'):
     as the opposite mapping for indices to SSOCs. This is to enable
     data to be used for training as well as for generation of new
     predictions based on unseen data.
+
+    Training: SSOC_xD, ssoc_idx SSOC -> idx
+    Prediction: SSOC_xD, idx_ssoc
+
+    Where x is the level of interest.
 
     Args:
         reference_data: Pandas dataframe containing all SSOCs (v2020)
@@ -43,7 +48,8 @@ def generate_encoding(reference_data, ssoc_colname = 'SSOC 2020'):
         ssoc_idx_mapping = {}
 
         # Slice the SSOC column by the level required, drop duplicates, and sort
-        ssocs = list(np.sort(reference_data[ssoc_colname].astype('str').str.slice(0, level).unique()))
+        ssocs = list(np.sort(reference_data[ssoc_colname].astype(
+            'str').str.slice(0, level).unique()))
 
         # Iterate through each unique SSOC (at i-digit level) and add to dict
         for i, ssoc in enumerate(ssocs):
@@ -59,6 +65,7 @@ def generate_encoding(reference_data, ssoc_colname = 'SSOC 2020'):
         }
 
     return encoding
+
 
 def encode_dataset(data,
                    encoding,
@@ -88,14 +95,37 @@ def encode_dataset(data,
 
     # For each digit, encode the SSOC correctly
     for ssoc_level, encodings in encoding.items():
-        encoded_data[ssoc_level] = encoded_data['SSOC'].astype('str').str.slice(0, int(ssoc_level[5])).replace(encodings['ssoc_idx'])
+        encoded_data[ssoc_level] = encoded_data['SSOC'].astype('str').str.slice(
+            0, int(ssoc_level[5])).replace(encodings['ssoc_idx'])
 
     return encoded_data
 
 # Create a new Python class to handle the additional complexity
+
+
 class SSOC_Dataset(Dataset):
     """
+    Class to represent dataset along with several attributes.
 
+    ...
+
+    Attributes
+    ----------
+    dataframe: pandas dataframe
+        SSOC dataset of interest
+    tokenizer: Transformer Tokenizer
+        End to end tokenization
+    max_len: int
+        Max length of sequences, for padding
+    colnames: str
+        For Something
+
+    Methods
+    ----------
+    __getitem__: dict
+        Input Id, Input mask (for batching inputs) and xD representation
+    __len__:
+        Number of rows in dataframe
     """
 
     # Define the class attributes
@@ -114,13 +144,13 @@ class SSOC_Dataset(Dataset):
 
         # Pass in the data into the tokenizer
         inputs = self.tokenizer(
-            text = text,
-            text_pair = None,
-            add_special_tokens = True,
-            max_length = self.max_len,
-            padding = 'max_length',
-            return_token_type_ids = True,
-            truncation = True
+            text=text,
+            text_pair=None,
+            add_special_tokens=True,
+            max_length=self.max_len,
+            padding='max_length',
+            return_token_type_ids=True,
+            truncation=True
         )
 
         # Extract the IDs and attention mask
@@ -129,18 +159,19 @@ class SSOC_Dataset(Dataset):
 
         # Return all the outputs needed for training and evaluation
         return {
-            'ids': torch.tensor(ids, dtype = torch.long),
-            'mask': torch.tensor(mask, dtype = torch.long),
-            'SSOC_1D': torch.tensor(self.data.SSOC_1D[index], dtype = torch.long),
-            'SSOC_2D': torch.tensor(self.data.SSOC_2D[index], dtype = torch.long),
-            'SSOC_3D': torch.tensor(self.data.SSOC_3D[index], dtype = torch.long),
-            'SSOC_4D': torch.tensor(self.data.SSOC_4D[index], dtype = torch.long),
-            'SSOC_5D': torch.tensor(self.data.SSOC_5D[index], dtype = torch.long),
+            'ids': torch.tensor(ids, dtype=torch.long),
+            'mask': torch.tensor(mask, dtype=torch.long),
+            'SSOC_1D': torch.tensor(self.data.SSOC_1D[index], dtype=torch.long),
+            'SSOC_2D': torch.tensor(self.data.SSOC_2D[index], dtype=torch.long),
+            'SSOC_3D': torch.tensor(self.data.SSOC_3D[index], dtype=torch.long),
+            'SSOC_4D': torch.tensor(self.data.SSOC_4D[index], dtype=torch.long),
+            'SSOC_5D': torch.tensor(self.data.SSOC_5D[index], dtype=torch.long),
         }
 
     # Define the length attribute
     def __len__(self):
         return self.len
+
 
 def prepare_data(encoded_data,
                  tokenizer,
@@ -148,40 +179,66 @@ def prepare_data(encoded_data,
                  parameters):
     """
     Prepares the encoded data for training and validation.
-
-
+    Dataloader allows dataset to be represented as a Python iterable in a map-style format
 
     Args:
-        encoded_data:
-        colnames: Dictionary of column names to
-        parameters:
+        encoded_data: pandas dataframe
+            Base data with SSOC xD
+        colnames: dictionary
+            Column name mappings key: standardized, value: actual naming
+        parameters: dictionary
+            Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
 
     Returns:
+        training_loader: torch dataloader
+            Training data in map style torch data format
+        validation_loader: torch dataloader
+            Validation data in map style torch data format
+
 
     """
 
     # Split the dataset into training and validation with a 20% split
     training_data, validation_data = train_test_split(encoded_data,
-                                                      test_size = 0.2,
-                                                      random_state = 2021)
-    training_data.reset_index(drop = True, inplace = True)
-    validation_data.reset_index(drop = True, inplace = True)
+                                                      test_size=0.2,
+                                                      random_state=2021)
+    training_data.reset_index(drop=True, inplace=True)
+    validation_data.reset_index(drop=True, inplace=True)
 
     # Creating the dataset and dataloader for the neural network
     training_loader = DataLoader(SSOC_Dataset(training_data, tokenizer, parameters['sequence_max_length'], colnames),
-                                 batch_size = parameters['training_batch_size'],
-                                 num_workers = parameters['num_workers'],
-                                 shuffle = True,
-                                 pin_memory = True)
+                                 batch_size=parameters['training_batch_size'],
+                                 num_workers=parameters['num_workers'],
+                                 shuffle=True,
+                                 pin_memory=True)
     validation_loader = DataLoader(SSOC_Dataset(validation_data, tokenizer, parameters['sequence_max_length'], colnames),
-                                   batch_size = parameters['training_batch_size'],
-                                   num_workers = parameters['num_workers'],
-                                   shuffle = True,
-                                   pin_memory = True)
+                                   batch_size=parameters['training_batch_size'],
+                                   num_workers=parameters['num_workers'],
+                                   shuffle=True,
+                                   pin_memory=True)
 
     return training_loader, validation_loader
 
+
 class HierarchicalSSOCClassifier(torch.nn.Module):
+    """
+    Class to represent NN architecture.
+    Inherits torch.nn.Module, base class for all NN modules
+    ...
+
+    Attributes
+    ----------
+    training_parameters: pandas dataframe
+        Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
+    encoding: dicitonary
+        Encoding for each SSOC level
+
+    Methods
+    ----------
+    forward: dict
+        predictions batch size by length of target SSOC_xD
+
+    """
 
     def __init__(self, training_parameters, encoding):
 
@@ -189,6 +246,7 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
         self.encoding = encoding
 
         # Initialise the class, not sure exactly what this does
+        # Ben: Should be similar to super()?
         super(HierarchicalSSOCClassifier, self).__init__()
 
         # Load the DistilBert model which will generate the embeddings
@@ -210,6 +268,9 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
                 torch.nn.Linear(768, 768),
                 torch.nn.ReLU(),
                 torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
                 torch.nn.Linear(768, 128),
                 torch.nn.ReLU(),
                 torch.nn.Dropout(0.3),
@@ -220,9 +281,13 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
         if self.training_parameters['max_level'] >= 2:
 
             # Adding the predictions from Stack 1 to the word embeddings
+            # n_dims_2d = 777
             n_dims_2d = 768 + SSOC_1D_count
 
             self.ssoc_2d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_2d, n_dims_2d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
                 torch.nn.Linear(n_dims_2d, n_dims_2d),
                 torch.nn.ReLU(),
                 torch.nn.Dropout(0.3),
@@ -235,10 +300,85 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
                 torch.nn.Linear(128, SSOC_2D_count)
             )
 
+        # Stack 3: Predicting 3D SSOC (144)
+        if self.training_parameters['max_level'] >= 3:
+
+            # Adding the predictions from Stacks 1 and 2 to the word embeddings
+            # n_dims_3d = 819
+            n_dims_3d = 768 + SSOC_1D_count + SSOC_2D_count
+
+            self.ssoc_3d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_3d, n_dims_3d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_3d, n_dims_3d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_3d, n_dims_3d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_3d, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, 256),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(256, SSOC_3D_count)
+            )
+
+        # Stack 4: Predicting 4D SSOC (413)
+        if self.training_parameters['max_level'] >= 4:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_4d = 963
+            n_dims_4d = 768 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count
+
+            self.ssoc_4d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_4d, n_dims_4d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_4d, n_dims_4d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_4d, n_dims_4d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_4d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, SSOC_4D_count)
+            )
+
+        # Stack 5: Predicting 5D SSOC (997)
+        if self.training_parameters['max_level'] >= 5:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_5d = 1376
+            n_dims_5d = 768 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count + SSOC_4D_count
+
+            self.ssoc_5d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, SSOC_5D_count)
+            )
+
     def forward(self, input_ids, attention_mask):
 
         # Obtain the sentence embeddings from the DistilBERT model
-        embeddings = self.l1(input_ids = input_ids, attention_mask = attention_mask)
+        embeddings = self.l1(input_ids=input_ids, attention_mask=attention_mask)
         hidden_state = embeddings[0]
         X = hidden_state[:, 0]
 
@@ -251,33 +391,70 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
 
         # 2D Prediction
         if self.training_parameters['max_level'] >= 2:
-            X = torch.cat((X, predictions['SSOC_1D']), dim = 1)
+            X = torch.cat((X, predictions['SSOC_1D']), dim=1)
             predictions['SSOC_2D'] = self.ssoc_2d_stack(X)
+
+        # 3D Prediction
+        if self.training_parameters['max_level'] >= 3:
+            X = torch.cat((X, predictions['SSOC_2D']), dim=1)
+            predictions['SSOC_3D'] = self.ssoc_3d_stack(X)
+
+        # 4D Prediction
+        if self.training_parameters['max_level'] >= 4:
+            X = torch.cat((X, predictions['SSOC_3D']), dim=1)
+            predictions['SSOC_4D'] = self.ssoc_4d_stack(X)
+
+        # 5D Prediction
+        if self.training_parameters['max_level'] >= 5:
+            X = torch.cat((X, predictions['SSOC_4D']), dim=1)
+            predictions['SSOC_5D'] = self.ssoc_5d_stack(X)
 
         return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
 
+
 def prepare_model(encoding, parameters):
     """
+    Setting up NN architecture along with the additonal parameters such as loss functions and optimizers
 
     Args:
         encoding:
+            Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
         parameters:
+            Encoding for each SSOC level
+
+    Returns:
+        model: HierarchicalSSOCClassifier
+            NN architecture representation
+        loss_function: torch object
+            Cross entropy loss function multiclass loss calculation
+        optimizer: torch object
+            Optimization algorithm for stochastic gradient descent
+
+    """
+
+    # Setting NN architeture
+    model = HierarchicalSSOCClassifier(parameters, encoding)
+    model.to(parameters['device'])
+    loss_function = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.AdamW(params=model.parameters(), lr=parameters['learning_rate'])
+    optimizer.zero_grad(set_to_none=True)
+
+    return model, loss_function, optimizer
+
+
+def calculate_accuracy(big_idx, targets):
+    """
+
+    Args:
+        big_idx:
+        targets:
 
     Returns:
 
     """
-
-    model = HierarchicalSSOCClassifier(parameters, encoding)
-    model.to(parameters['device'])
-    loss_function = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(params = model.parameters(), lr = parameters['learning_rate'])
-    optimizer.zero_grad(set_to_none = True)
-
-    return model, loss_function, optimizer
-
-def calculate_accuracy(big_idx, targets):
     n_correct = (big_idx == targets).sum().item()
     return n_correct
+
 
 def train_model(model,
                 loss_function,
@@ -285,7 +462,26 @@ def train_model(model,
                 training_loader,
                 validation_loader,
                 parameters):
+    """
+    Iteration through each epoch, with the predefined batch size.
 
+    Args: Outputs of prepare_model
+        model:HierarchicalSSOCClassifier
+            NN architecture
+        loss_function: torch object
+            Cross entropy loss function multiclass loss calculation
+        optimizer: torch object
+            Optimization algorithm for stochastic gradient descent
+        training_loader: torch dataloader
+            Training data in map style torch data format
+        validation_loader: torch dataloader
+            Validation data in map style torch data format
+        parameters: dictionary
+            Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
+
+    Returns: None
+
+    """
     # Start the timer
     start_time = datetime.now()
     print(f"Training started on: {start_time.strftime('%d %b %Y - %H:%M:%S')}")
@@ -314,8 +510,8 @@ def train_model(model,
         for batch, data in enumerate(training_loader):
 
             # Extract the data
-            ids = data['ids'].to(parameters['device'], dtype = torch.long)
-            mask = data['mask'].to(parameters['device'], dtype = torch.long)
+            ids = data['ids'].to(parameters['device'], dtype=torch.long)
+            mask = data['mask'].to(parameters['device'], dtype=torch.long)
 
             # Run the forward prop
             predictions = model(ids, mask)
@@ -324,7 +520,7 @@ def train_model(model,
             for ssoc_level, preds in predictions.items():
 
                 # Extract the correct target for the SSOC level
-                targets = data[ssoc_level].to(parameters['device'], dtype = torch.long)
+                targets = data[ssoc_level].to(parameters['device'], dtype=torch.long)
 
                 # Compute the loss function using the predictions and the targets
                 level_loss = loss_function(preds, targets)
@@ -339,7 +535,7 @@ def train_model(model,
 
             # Use the deepest level predictions to calculate accuracy
             # Exploit the fact that the last preds object is the deepest level one
-            top_probs, top_probs_idx = torch.max(preds.data, dim = 1)
+            top_probs, top_probs_idx = torch.max(preds.data, dim=1)
             tr_n_correct += calculate_accuracy(top_probs_idx, targets)
 
             # Add this batch's loss to the overall training loss
@@ -355,13 +551,14 @@ def train_model(model,
             optimizer.step()
 
             # For every X number of steps, print some information
-            batch_size_printing = 200
+            batch_size_printing = 50
             if (batch + 1) % batch_size_printing == 0:
                 loss_step = tr_loss / nb_tr_steps
                 accu_step = (tr_n_correct * 100) / nb_tr_examples
                 print(f">> Training Loss per {batch_size_printing} steps: {loss_step:.4f} ")
                 print(f">> Training Accuracy per {batch_size_printing} steps: {accu_step:.2f}%")
-                print(f">> Batch of {batch_size_printing} took {(datetime.now() - batch_start_time).total_seconds() / 60:.2f} mins")
+                print(
+                    f">> Batch of {batch_size_printing} took {(datetime.now() - batch_start_time).total_seconds() / 60:.2f} mins")
                 batch_start_time = datetime.now()
 
         # Set the model to evaluation mode for the validation
@@ -379,8 +576,8 @@ def train_model(model,
             for batch, data in enumerate(validation_loader):
 
                 # Extract the data
-                ids = data['ids'].to(parameters['device'], dtype = torch.long)
-                mask = data['mask'].to(parameters['device'], dtype = torch.long)
+                ids = data['ids'].to(parameters['device'], dtype=torch.long)
+                mask = data['mask'].to(parameters['device'], dtype=torch.long)
 
                 # Run the forward prop
                 predictions = model(ids, mask)
@@ -389,7 +586,7 @@ def train_model(model,
                 for ssoc_level, preds in predictions.items():
 
                     # Extract the correct target for the SSOC level
-                    targets = data[ssoc_level].to(parameters['device'], dtype = torch.long)
+                    targets = data[ssoc_level].to(parameters['device'], dtype=torch.long)
 
                     # Compute the loss function using the predictions and the targets
                     level_loss = loss_function(preds, targets)
@@ -404,7 +601,7 @@ def train_model(model,
 
                 # Use the deepest level predictions to calculate accuracy
                 # Exploit the fact that the last preds object is the deepest level one
-                top_probs, top_probs_idx = torch.max(preds.data, dim = 1)
+                top_probs, top_probs_idx = torch.max(preds.data, dim=1)
                 va_n_correct += calculate_accuracy(top_probs_idx, targets)
 
                 # Add this batch's loss to the overall training loss
@@ -419,9 +616,12 @@ def train_model(model,
         epoch_va_loss = va_loss / nb_va_steps
         epoch_tr_accu = (tr_n_correct * 100) / nb_tr_examples
         epoch_va_accu = (va_n_correct * 100) / nb_va_examples
-        print(f"> Epoch {epoch_num} Loss = \tTraining: {epoch_tr_loss:.3f}  \tValidation: {epoch_va_loss:.3f}")
-        print(f"> Epoch {epoch_num} Accuracy = \tTraining: {epoch_tr_accu:.2f}%  \tValidation: {epoch_va_accu:.2f}%")
-        print(f"> Epoch {epoch_num} took {(datetime.now() - epoch_start_time).total_seconds() / 60:.2f} mins")
+        print(
+            f"> Epoch {epoch_num} Loss = \tTraining: {epoch_tr_loss:.3f}  \tValidation: {epoch_va_loss:.3f}")
+        print(
+            f"> Epoch {epoch_num} Accuracy = \tTraining: {epoch_tr_accu:.2f}%  \tValidation: {epoch_va_accu:.2f}%")
+        print(
+            f"> Epoch {epoch_num} took {(datetime.now() - epoch_start_time).total_seconds() / 60:.2f} mins")
         print("====================================================================")
 
     end_time = datetime.now()
@@ -430,27 +630,42 @@ def train_model(model,
 
     return
 
+
 def generate_prediction(model,
                         tokenizer,
                         text,
                         target,
-                        parameters):
+                        parameters,
+                        encoding):
+    """
+
+    Args:
+        model:
+        tokenizer:
+        text:
+        target:
+        parameters:
+        encoding:
+
+    Returns:
+
+    """
 
     tokenized = tokenizer(
-        text = text,
-        text_pair = None,
-        add_special_tokens = True,
-        max_length = parameters['sequence_max_length'],
-        padding = 'max_length',
-        return_token_type_ids = True,
-        truncation = True
+        text=text,
+        text_pair=None,
+        add_special_tokens=True,
+        max_length=parameters['sequence_max_length'],
+        padding='max_length',
+        return_token_type_ids=True,
+        truncation=True
     )
-    test_ids = torch.tensor([tokenized['input_ids']], dtype = torch.long)
-    test_mask = torch.tensor([tokenized['attention_mask']], dtype = torch.long)
+    test_ids = torch.tensor([tokenized['input_ids']], dtype=torch.long)
+    test_mask = torch.tensor([tokenized['attention_mask']], dtype=torch.long)
 
     model.eval()
     preds = model(test_ids, test_mask)
-    m = torch.nn.Softmax(dim = 1)
+    m = torch.nn.Softmax(dim=1)
 
     predicted_1D = encoding['SSOC_1D']['idx_ssoc'][np.argmax(preds["SSOC_1D"].detach().numpy())]
     predicted_1D_proba = np.max(m(preds['SSOC_1D']).detach().numpy())

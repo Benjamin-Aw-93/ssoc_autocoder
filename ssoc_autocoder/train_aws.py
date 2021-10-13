@@ -215,6 +215,9 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
                 torch.nn.Linear(768, 768),
                 torch.nn.ReLU(),
                 torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
                 torch.nn.Linear(768, 128),
                 torch.nn.ReLU(),
                 torch.nn.Dropout(0.3),
@@ -225,9 +228,13 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
         if self.training_parameters['max_level'] >= 2:
 
             # Adding the predictions from Stack 1 to the word embeddings
+            # n_dims_2d = 777
             n_dims_2d = 768 + SSOC_1D_count
 
             self.ssoc_2d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_2d, n_dims_2d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
                 torch.nn.Linear(n_dims_2d, n_dims_2d),
                 torch.nn.ReLU(),
                 torch.nn.Dropout(0.3),
@@ -239,6 +246,82 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
                 torch.nn.Dropout(0.3),
                 torch.nn.Linear(128, SSOC_2D_count)
             )
+
+        # Stack 3: Predicting 3D SSOC (144)
+        if self.training_parameters['max_level'] >= 3:
+
+            # Adding the predictions from Stacks 1 and 2 to the word embeddings
+            # n_dims_3d = 819
+            n_dims_3d = 768 + SSOC_1D_count + SSOC_2D_count
+
+            self.ssoc_3d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_3d, n_dims_3d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_3d, n_dims_3d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_3d, n_dims_3d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_3d, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, 256),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(256, SSOC_3D_count)
+            )
+
+        # Stack 4: Predicting 4D SSOC (413)
+        if self.training_parameters['max_level'] >= 4:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_4d = 963
+            n_dims_4d = 768 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count
+
+            self.ssoc_4d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_4d, n_dims_4d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_4d, n_dims_4d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_4d, n_dims_4d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_4d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, SSOC_4D_count)
+            )
+
+        # Stack 5: Predicting 5D SSOC (997)
+        if self.training_parameters['max_level'] >= 5:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_5d = 1376
+            n_dims_5d = 768 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count + SSOC_4D_count
+
+            self.ssoc_5d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, SSOC_5D_count)
+            )
+
 
     def forward(self, input_ids, attention_mask):
 
@@ -258,6 +341,21 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
         if self.training_parameters['max_level'] >= 2:
             X = torch.cat((X, predictions['SSOC_1D']), dim = 1)
             predictions['SSOC_2D'] = self.ssoc_2d_stack(X)
+
+        # 3D Prediction
+        if self.training_parameters['max_level'] >= 3:
+            X = torch.cat((X, predictions['SSOC_2D']), dim = 1)
+            predictions['SSOC_3D'] = self.ssoc_3d_stack(X)
+
+        # 4D Prediction
+        if self.training_parameters['max_level'] >= 4:
+            X = torch.cat((X, predictions['SSOC_3D']), dim = 1)
+            predictions['SSOC_4D'] = self.ssoc_4d_stack(X)
+
+        # 5D Prediction
+        if self.training_parameters['max_level'] >= 5:
+            X = torch.cat((X, predictions['SSOC_4D']), dim = 1)
+            predictions['SSOC_5D'] = self.ssoc_5d_stack(X)
 
         return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
 
@@ -493,11 +591,11 @@ if __name__ == "__main__":
 
     parameters = {
         'sequence_max_length': 512,
-        'max_level': 2,
+        'max_level': 5,
         'training_batch_size': 32,
         'validation_batch_size': 32,
-        'epochs': 1,
-        'learning_rate': 0.001,
+        'epochs': 10,
+        'learning_rate': 0.0001,
         'pretrained_model': 'distilbert-base-uncased',
         'num_workers': 2,
         'loss_weights': {
@@ -516,12 +614,18 @@ if __name__ == "__main__":
     SSOC_2020 = pd.read_csv(os.path.join(args.data_dir, 'SSOC_2020.csv'))
 
     encoding = generate_encoding(SSOC_2020)
-    encoded_data = encode_dataset(data[0:3000], encoding, colnames)
+    encoded_data = encode_dataset(data, encoding, colnames)
     tokenizer = DistilBertTokenizer.from_pretrained(parameters['pretrained_model'])
     training_loader, validation_loader = prepare_data(encoded_data, tokenizer, colnames, parameters)
     model, loss_function, optimizer = prepare_model(encoding, parameters)
 
-    model_path = os.path.join(args.model_dir, 'model.pth')
+    print("Loading pretrained model...")
+    model.load_state_dict(torch.load(os.path.join(args.data_dir, 'sm-model-5D-1epoch.pth')))
+    print("Model loaded successfully!")
+
+    train_model(model, loss_function, optimizer, training_loader, validation_loader, parameters)
+
+    model_path = os.path.join(args.model_dir, 'sm-model-5D-10epoch.pth')
 
     # Move the best model to cpu and resave it
     with open(model_path, 'wb') as f:
