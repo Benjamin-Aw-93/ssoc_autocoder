@@ -129,11 +129,12 @@ class SSOC_Dataset(Dataset):
     """
 
     # Define the class attributes
-    def __init__(self, dataframe, tokenizer, max_len, colnames):
+    def __init__(self, dataframe, tokenizer, max_len, colnames, architecture):
         self.len = len(dataframe)
         self.data = dataframe
         self.tokenizer = tokenizer
         self.max_len = max_len
+        self.architecture = architecture
 
     # Define the iterable over the Dataset object
     def __getitem__(self, index):
@@ -158,17 +159,25 @@ class SSOC_Dataset(Dataset):
         mask = inputs['attention_mask']
 
         # Return all the outputs needed for training and evaluation
-        return {
-            'ids': torch.tensor(ids, dtype=torch.long),
-            'mask': torch.tensor(mask, dtype=torch.long),
-            'SSOC_1D': torch.tensor(self.data.SSOC_1D[index], dtype=torch.long),
-            'SSOC_2D': torch.tensor(self.data.SSOC_2D[index], dtype=torch.long),
-            'SSOC_3D': torch.tensor(self.data.SSOC_3D[index], dtype=torch.long),
-            'SSOC_4D': torch.tensor(self.data.SSOC_4D[index], dtype=torch.long),
-            'SSOC_5D': torch.tensor(self.data.SSOC_5D[index], dtype=torch.long),
-        }
+        if self.architecture == "hierarchical":
+            return {
+                'ids': torch.tensor(ids, dtype=torch.long),
+                'mask': torch.tensor(mask, dtype=torch.long),
+                'SSOC_1D': torch.tensor(self.data.SSOC_1D[index], dtype=torch.long),
+                'SSOC_2D': torch.tensor(self.data.SSOC_2D[index], dtype=torch.long),
+                'SSOC_3D': torch.tensor(self.data.SSOC_3D[index], dtype=torch.long),
+                'SSOC_4D': torch.tensor(self.data.SSOC_4D[index], dtype=torch.long),
+                'SSOC_5D': torch.tensor(self.data.SSOC_5D[index], dtype=torch.long),
+            }
+        elif self.architecture == "straight":
+            return {
+                'ids': torch.tensor(ids, dtype=torch.long),
+                'mask': torch.tensor(mask, dtype=torch.long),
+                'SSOC_5D': torch.tensor(self.data.SSOC_5D[index], dtype=torch.long),
+            }
 
     # Define the length attribute
+
     def __len__(self):
         return self.len
 
@@ -206,12 +215,12 @@ def prepare_data(encoded_data,
     validation_data.reset_index(drop=True, inplace=True)
 
     # Creating the dataset and dataloader for the neural network
-    training_loader = DataLoader(SSOC_Dataset(training_data, tokenizer, parameters['sequence_max_length'], colnames),
+    training_loader = DataLoader(SSOC_Dataset(training_data, tokenizer, parameters['sequence_max_length'], colnames, parameters['architecture']),
                                  batch_size=parameters['training_batch_size'],
                                  num_workers=parameters['num_workers'],
                                  shuffle=True,
                                  pin_memory=True)
-    validation_loader = DataLoader(SSOC_Dataset(validation_data, tokenizer, parameters['sequence_max_length'], colnames),
+    validation_loader = DataLoader(SSOC_Dataset(validation_data, tokenizer, parameters['sequence_max_length'], colnames, parameters['architecture']),
                                    batch_size=parameters['training_batch_size'],
                                    num_workers=parameters['num_workers'],
                                    shuffle=True,
@@ -452,22 +461,22 @@ class StraightThruSSOCClassifier(torch.nn.Module):
 
         # Remove all layers keep last stack
         self.ssoc_5d_stack = torch.nn.Sequential(
+            torch.nn.Linear(768, 768),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
+            torch.nn.Linear(768, 1024),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
+            torch.nn.Linear(1024, 3072),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
             torch.nn.Linear(3072, 3072),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.3),
-            torch.nn.Linear(3072, 768),
+            torch.nn.Linear(3072, 1024),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.3),
-            torch.nn.Linear(768, 768),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(768, 768),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(768, 128),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(128, SSOC_5D_count)
+            torch.nn.Linear(1024, SSOC_5D_count)
         )
 
     def forward(self, input_ids, attention_mask):
@@ -484,10 +493,10 @@ class StraightThruSSOCClassifier(torch.nn.Module):
         if self.training_parameters['max_level'] >= 5:
             predictions['SSOC_5D'] = self.ssoc_5d_stack(X)
 
-        return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
+        return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(5, self.training_parameters['max_level'] + 1)}
 
 
-def prepare_model(which, encoding, parameters):
+def prepare_model(encoding, parameters):
     """
     Setting up NN architecture along with the additonal parameters such as loss functions and optimizers
 
@@ -511,12 +520,13 @@ def prepare_model(which, encoding, parameters):
 
     # Setting NN architeture
 
-    if which == "hierarchical":
+    if parameters["architecture"] == "hierarchical":
         model = HierarchicalSSOCClassifier(parameters, encoding)
-    elif which == "straight":
+    elif parameters["architecture"] == "straight":
         model = StraightThruSSOCClassifier(parameters, encoding)
     else:
-        raise InputError("Choose which model to run: hierarchical or straight through")
+        raise InputError(
+            "Choose which model to run: Set in parameters hierarchical or straight through")
 
     model.to(parameters['device'])
     loss_function = torch.nn.CrossEntropyLoss()
@@ -612,10 +622,13 @@ def train_model(model,
                 # Initialise the loss variable if this is the 1D level
                 # Else add to the loss variable
                 # Note the weights on each level
-                if ssoc_level == 'SSOC_1D':
+                if ssoc_level == 'SSOC_1D' and parameters["architecture"] == "hierarchical":
                     loss = level_loss * parameters['loss_weights'][ssoc_level]
-                else:
+                elif parameters["architecture"] == "hierarchical":
                     loss += level_loss * parameters['loss_weights'][ssoc_level]
+                else:
+                    # no need to do stratified penalisation, all errors are equally penalised
+                    loss = level_loss
 
             # Use the deepest level predictions to calculate accuracy
             # Exploit the fact that the last preds object is the deepest level one
