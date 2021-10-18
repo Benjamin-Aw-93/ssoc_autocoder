@@ -487,7 +487,7 @@ class StraightThruSSOCClassifier(torch.nn.Module):
         return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
 
 
-def prepare_model(encoding, parameters):
+def prepare_model(which, encoding, parameters):
     """
     Setting up NN architecture along with the additonal parameters such as loss functions and optimizers
 
@@ -498,7 +498,9 @@ def prepare_model(encoding, parameters):
             Encoding for each SSOC level
 
     Returns:
-        model: HierarchicalSSOCClassifier
+        which: string
+            Which model to run on, stright through or hierarchical
+        model: forward prop architecture
             NN architecture representation
         loss_function: torch object
             Cross entropy loss function multiclass loss calculation
@@ -508,7 +510,14 @@ def prepare_model(encoding, parameters):
     """
 
     # Setting NN architeture
-    model = HierarchicalSSOCClassifier(parameters, encoding)
+
+    if which == "hierarchical":
+        model = HierarchicalSSOCClassifier(parameters, encoding)
+    elif which == "straight":
+        model = StraightThruSSOCClassifier(parameters, encoding)
+    else:
+        raise InputError("Choose which model to run: hierarchical or straight through")
+
     model.to(parameters['device'])
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=parameters['learning_rate'])
