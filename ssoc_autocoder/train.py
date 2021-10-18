@@ -412,6 +412,81 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
         return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
 
 
+class StraightThruSSOCClassifier(torch.nn.Module):
+    """
+    Class to represent 5D direct NN architecture.
+    Inherits torch.nn.Module, base class for all NN modules
+    ...
+
+    Attributes
+    ----------
+    training_parameters: pandas dataframe
+        Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
+    encoding: dicitonary
+        Encoding for each SSOC level
+
+    Methods
+    ----------
+    forward: dict
+        predictions batch size by length of target SSOC_xD
+
+    """
+
+    def __init__(self, training_parameters, encoding):
+
+        self.training_parameters = training_parameters
+        self.encoding = encoding
+
+        # Initialise the class, not sure exactly what this does
+        # Ben: Should be similar to super()?
+        super(StraightThruSSOCClassifier, self).__init__()
+
+        # Load the DistilBert model which will generate the embeddings
+        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'])
+
+        for param in self.l1.parameters():
+            param.requires_grad = False
+
+        # Generate counts of each digit SSOCs
+        SSOC_5D_count = len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
+
+        # Remove all layers keep last stack
+        self.ssoc_5d_stack = torch.nn.Sequential(
+            torch.nn.Linear(3072, 3072),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
+            torch.nn.Linear(3072, 768),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
+            torch.nn.Linear(768, 768),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
+            torch.nn.Linear(768, 768),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
+            torch.nn.Linear(768, 128),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.3),
+            torch.nn.Linear(128, SSOC_5D_count)
+        )
+
+    def forward(self, input_ids, attention_mask):
+
+        # Obtain the sentence embeddings from the DistilBERT model
+        embeddings = self.l1(input_ids=input_ids, attention_mask=attention_mask)
+        hidden_state = embeddings[0]
+        X = hidden_state[:, 0]
+
+        # Initialise a dictionary to hold all the predictions
+        predictions = {}
+
+        # Direct 5D Prediction
+        if self.training_parameters['max_level'] >= 5:
+            predictions['SSOC_5D'] = self.ssoc_5d_stack(X)
+
+        return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
+
+
 def prepare_model(encoding, parameters):
     """
     Setting up NN architecture along with the additonal parameters such as loss functions and optimizers
