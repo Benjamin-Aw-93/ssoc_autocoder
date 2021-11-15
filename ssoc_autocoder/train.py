@@ -636,7 +636,7 @@ def generate_prediction(model,
                         text,
                         target,
                         parameters,
-                        encoding):
+                        top_n):
     """
     Predicting on actual text, comparing with actual 5D SSOC value
 
@@ -670,7 +670,6 @@ def generate_prediction(model,
 
     Returns: None
     """
-
     tokenized = tokenizer(
         text=text,
         text_pair=None,
@@ -680,18 +679,66 @@ def generate_prediction(model,
         return_token_type_ids=True,
         truncation=True
     )
+
     test_ids = torch.tensor([tokenized['input_ids']], dtype=torch.long)
     test_mask = torch.tensor([tokenized['attention_mask']], dtype=torch.long)
 
     model.eval()
-    preds = model(test_ids, test_mask)
-    m = torch.nn.Softmax(dim=1)
+    with torch.no_grad():
+        preds = model(test_ids, test_mask)
+        m = torch.nn.Softmax(dim=1)
 
-    predicted_1D = encoding['SSOC_1D']['idx_ssoc'][np.argmax(preds["SSOC_1D"].detach().numpy())]
-    predicted_1D_proba = np.max(m(preds['SSOC_1D']).detach().numpy())
-    predicted_2D = encoding['SSOC_2D']['idx_ssoc'][np.argmax(preds["SSOC_2D"].detach().numpy())]
-    predicted_2D_proba = np.max(m(preds['SSOC_2D']).detach().numpy())
+    predicted_1D_idx = preds["SSOC_1D"].detach().numpy().argsort()[0][::-1][:top_n["SSOC_1D"]]
+    predicted_1D = [encoding['SSOC_1D']['idx_ssoc'][idx] for idx in predicted_1D_idx]
+    predicted_1D_proba_all = m(preds['SSOC_1D']).detach().numpy()[0]
+    predicted_1D_proba = [predicted_1D_proba_all[idx] for idx in predicted_1D_idx]
+    predicted_1D_with_proba = zip(predicted_1D, predicted_1D_proba)
+
+    predicted_2D_idx = preds["SSOC_2D"].detach().numpy().argsort()[0][::-1][:top_n["SSOC_2D"]]
+    predicted_2D = [encoding['SSOC_2D']['idx_ssoc'][idx] for idx in predicted_2D_idx]
+    predicted_2D_proba_all = m(preds['SSOC_2D']).detach().numpy()[0]
+    predicted_2D_proba = [predicted_2D_proba_all[idx] for idx in predicted_2D_idx]
+    predicted_2D_with_proba = zip(predicted_2D, predicted_2D_proba)
+
+    predicted_3D_idx = preds["SSOC_3D"].detach().numpy().argsort()[0][::-1][:top_n["SSOC_3D"]]
+    predicted_3D = [encoding['SSOC_3D']['idx_ssoc'][idx] for idx in predicted_3D_idx]
+    predicted_3D_proba_all = m(preds['SSOC_3D']).detach().numpy()[0]
+    predicted_3D_proba = [predicted_3D_proba_all[idx] for idx in predicted_3D_idx]
+    predicted_3D_with_proba = zip(predicted_3D, predicted_3D_proba)
+
+    predicted_4D_idx = preds["SSOC_4D"].detach().numpy().argsort()[0][::-1][:top_n["SSOC_4D"]]
+    predicted_4D = [encoding['SSOC_4D']['idx_ssoc'][idx] for idx in predicted_4D_idx]
+    predicted_4D_proba_all = m(preds['SSOC_4D']).detach().numpy()[0]
+    predicted_4D_proba = [predicted_4D_proba_all[idx] for idx in predicted_4D_idx]
+    predicted_4D_with_proba = zip(predicted_4D, predicted_4D_proba)
+
+    predicted_5D_idx = preds["SSOC_5D"].detach().numpy().argsort()[0][::-1][:top_n["SSOC_5D"]]
+    predicted_5D = [encoding['SSOC_5D']['idx_ssoc'][idx] for idx in predicted_5D_idx]
+    predicted_5D_proba_all = m(preds['SSOC_5D']).detach().numpy()[0]
+    predicted_5D_proba = [predicted_5D_proba_all[idx] for idx in predicted_5D_idx]
+    predicted_5D_with_proba = zip(predicted_5D, predicted_5D_proba)
 
     print(f"Target: {target}")
-    print(f"Model predicted 1D: {predicted_1D} ({predicted_1D_proba * 100:.2f}%)")
-    print(f"Model predicted 2D: {predicted_2D} ({predicted_2D_proba * 100:.2f}%)")
+    print(f'Model top {top_n["SSOC_1D"]} predicted 1D:')
+    for predicted, prob in predicted_1D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    print(f"Target: {target}")
+    print(f'Model top {top_n["SSOC_2D"]} predicted 2D:')
+    for predicted, prob in predicted_2D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    print(f"Target: {target}")
+    print(f'Model top {top_n["SSOC_3D"]} predicted 3D:')
+    for predicted, prob in predicted_3D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    print(f"Target: {target}")
+    print(f'Model top {top_n["SSOC_4D"]} predicted 4D:')
+    for predicted, prob in predicted_4D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    print(f"Target: {target}")
+    print(f'Model top {top_n["SSOC_5D"]} predicted 5D:')
+    for predicted, prob in predicted_5D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
