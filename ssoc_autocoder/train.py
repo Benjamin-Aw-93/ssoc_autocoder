@@ -669,7 +669,7 @@ def generate_prediction(model,
                         text,
                         target,
                         parameters,
-                        top_n,
+                        top_n_threshold,
                         available_ssoc_codes,
                         failsafe=True):
     """
@@ -694,7 +694,7 @@ def generate_prediction(model,
             collapsing SSOC under threshold to Others catagories
 
 
-    Returns: dict of zipped prdictions and probabilities 
+    Returns: dict of zipped prdictions and probabilities
     """
     tokenized = tokenizer(
         text=text,
@@ -715,74 +715,74 @@ def generate_prediction(model,
         m = torch.nn.Softmax(dim=1)
 
     predicted_1D_idx = preds["SSOC_1D"].detach().numpy().argsort()[
-        0][::-1][:top_n["SSOC_1D"]["n_digit"]]
+        0][::-1][:top_n_threshold["SSOC_1D"]["n_digit"]]
     predicted_1D = [encoding['SSOC_1D']['idx_ssoc'][idx] for idx in predicted_1D_idx]
     predicted_1D_proba_all = m(preds['SSOC_1D']).detach().numpy()[0]
     predicted_1D_proba = [predicted_1D_proba_all[idx] for idx in predicted_1D_idx]
     predicted_1D_with_proba = zip(predicted_1D, predicted_1D_proba)
 
     predicted_2D_idx = preds["SSOC_2D"].detach().numpy().argsort()[
-        0][::-1][:top_n["SSOC_2D"]["n_digit"]]
+        0][::-1][:top_n_threshold["SSOC_2D"]["n_digit"]]
     predicted_2D = [encoding['SSOC_2D']['idx_ssoc'][idx] for idx in predicted_2D_idx]
     predicted_2D_proba_all = m(preds['SSOC_2D']).detach().numpy()[0]
     predicted_2D_proba = [predicted_2D_proba_all[idx] for idx in predicted_2D_idx]
     predicted_2D_with_proba = zip(predicted_2D, predicted_2D_proba)
 
     predicted_3D_idx = preds["SSOC_3D"].detach().numpy().argsort()[
-        0][::-1][:top_n["SSOC_3D"]["n_digit"]]
+        0][::-1][:top_n_threshold["SSOC_3D"]["n_digit"]]
     predicted_3D = [encoding['SSOC_3D']['idx_ssoc'][idx] for idx in predicted_3D_idx]
     predicted_3D_proba_all = m(preds['SSOC_3D']).detach().numpy()[0]
     predicted_3D_proba = [predicted_3D_proba_all[idx] for idx in predicted_3D_idx]
     predicted_3D_with_proba = zip(predicted_3D, predicted_3D_proba)
 
     predicted_4D_idx = preds["SSOC_4D"].detach().numpy().argsort()[
-        0][::-1][:top_n["SSOC_4D"]["n_digit"]]
+        0][::-1][:top_n_threshold["SSOC_4D"]["n_digit"]]
     predicted_4D = [encoding['SSOC_4D']['idx_ssoc'][idx] for idx in predicted_4D_idx]
     predicted_4D_proba_all = m(preds['SSOC_4D']).detach().numpy()[0]
     predicted_4D_proba = [predicted_4D_proba_all[idx] for idx in predicted_4D_idx]
     predicted_4D_with_proba = zip(predicted_4D, predicted_4D_proba)
 
     predicted_5D_idx = preds["SSOC_5D"].detach().numpy().argsort()[
-        0][::-1][:top_n["SSOC_5D"]["n_digit"]]
+        0][::-1][:top_n_threshold["SSOC_5D"]["n_digit"]]
     predicted_5D = [encoding['SSOC_5D']['idx_ssoc'][idx] for idx in predicted_5D_idx]
     predicted_5D_proba_all = m(preds['SSOC_5D']).detach().numpy()[0]
     predicted_5D_proba = [predicted_5D_proba_all[idx] for idx in predicted_5D_idx]
     predicted_5D_with_proba = zip(predicted_5D, predicted_5D_proba)
 
     print(f"Target: {target}")
-    print(f'Model top {top_n["SSOC_1D"]["n_digit"]} predicted 1D:')
+    print(f'Model top {top_n_threshold["SSOC_1D"]["n_digit"]} predicted 1D:')
     for predicted, prob in predicted_1D_with_proba:
         print(f'{predicted}: {prob*100:.2f}%')
 
     if failsafe:
         predicted_2D_with_proba = convert_others_SSOC(
-            predicted_2D_with_proba, top_n["SSOC_2D"]["threshold"], available_ssoc_codes)
+            predicted_2D_with_proba, top_n_threshold["SSOC_2D"]["threshold"], available_ssoc_codes)
 
-    print(f'Model top {top_n["SSOC_2D"]["n_digit"]} predicted 2D:')
+    print(f'Model top {top_n_threshold["SSOC_2D"]["n_digit"]} predicted 2D:')
     for predicted, prob in predicted_2D_with_proba:
         print(f'{predicted}: {prob*100:.2f}%')
 
     if failsafe:
         predicted_3D_with_proba = convert_others_SSOC(
-            predicted_3D_with_proba, top_n["SSOC_3D"]["threshold"], available_ssoc_codes)
+            predicted_3D_with_proba, top_n_threshold["SSOC_3D"]["threshold"], available_ssoc_codes)
 
-    print(f'Model top {top_n["SSOC_3D"]["n_digit"]} predicted 3D:')
+    print(f'Model top {top_n_threshold["SSOC_3D"]["n_digit"]} predicted 3D:')
     for predicted, prob in predicted_3D_with_proba:
         print(f'{predicted}: {prob*100:.2f}%')
 
     if failsafe:
         predicted_4D_with_proba = convert_others_SSOC(
-            predicted_4D_with_proba, top_n["SSOC_4D"]["threshold"], available_ssoc_codes)
+            predicted_4D_with_proba, top_n_threshold["SSOC_4D"]["threshold"], available_ssoc_codes)
 
-    print(f'Model top {top_n["SSOC_4D"]["n_digit"]} predicted 4D:')
+    print(f'Model top {top_n_threshold["SSOC_4D"]["n_digit"]} predicted 4D:')
     for predicted, prob in predicted_4D_with_proba:
         print(f'{predicted}: {prob*100:.2f}%')
 
     if failsafe:
         predicted_5D_with_proba = convert_others_SSOC(
-            predicted_5D_with_proba, top_n["SSOC_5D"]["threshold"], available_ssoc_codes)
+            predicted_5D_with_proba, top_n_threshold["SSOC_5D"]["threshold"], available_ssoc_codes)
 
-    print(f'Model top {top_n["SSOC_5D"]["n_digit"]} predicted 5D:')
+    print(f'Model top {top_n_threshold["SSOC_5D"]["n_digit"]} predicted 5D:')
     for predicted, prob in predicted_5D_with_proba:
         print(f'{predicted}: {prob*100:.2f}%')
 
