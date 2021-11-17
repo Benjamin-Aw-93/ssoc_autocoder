@@ -694,7 +694,7 @@ def generate_prediction(model,
             collapsing SSOC under threshold to Others catagories
 
 
-    Returns: None
+    Returns: dict of zipped prdictions and probabilities 
     """
     tokenized = tokenizer(
         text=text,
@@ -785,3 +785,9 @@ def generate_prediction(model,
     print(f'Model top {top_n["SSOC_5D"]["n_digit"]} predicted 5D:')
     for predicted, prob in predicted_5D_with_proba:
         print(f'{predicted}: {prob*100:.2f}%')
+
+    return {'SSOC_1D_prediction': predicted_1D_with_proba,
+            'SSOC_2D_prediction': predicted_2D_with_proba,
+            'SSOC_3D_prediction': predicted_3D_with_proba,
+            'SSOC_4D_prediction': predicted_4D_with_proba,
+            'SSOC_5D_prediction': predicted_5D_with_proba}
