@@ -645,23 +645,22 @@ def convert_others_SSOC(predicted_SSOC_with_proba, threshold, available_ssoc_cod
 
     Returns: zip of converted prediction and probabilities
     """
-    out_prediction = {}
+    out_prediction = []
+    out_probability = []
 
     for prediction, probability in predicted_SSOC_with_proba:
         if probability < threshold and prediction[-1] != '9':
             new_prediction = prediction[:-1] + '9'
             if new_prediction in available_ssoc_codes.values:
                 print(f'Converting {prediction} to {new_prediction}')
-                if new_prediction not in out_prediction.keys():
-                    out_prediction[new_prediction] = probability
-                else:
-                    out_prediction[new_prediction] = out_prediction[new_prediction] + probability
+                out_prediction.append(new_prediction)
             else:
-                out_prediction[prediction] = probability
+                out_prediction.append(prediction)
         else:
-            out_prediction[prediction] = probability
+            out_prediction.append(prediction)
+        out_probability.append(probability)
 
-    return zip(out_prediction.keys(), out_prediction.values())
+    return zip(out_prediction, out_probability)
 
 
 def generate_prediction(model,
