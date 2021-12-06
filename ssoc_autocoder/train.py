@@ -728,28 +728,48 @@ def train_model(model,
     return
 
 
+def convert_others_SSOC(predicted_SSOC_with_proba, threshold, available_ssoc_codes):
+    """
+    Predicting on actual text, comparing with actual 5D SSOC value
+
+    Args:
+        predicted_SSOC_with_proba: zip
+            listing of prediction and correspodning probabilities
+        threshold: double
+            threhold for X-D SSOC, if its below the threshold, covert occupation code to Others
+        available_ssoc_codes: pd series
+            All possible SSOC values
+
+    Returns: zip of converted prediction and probabilities
+    """
+    out_prediction = []
+    out_probability = []
+
+    for prediction, probability in predicted_SSOC_with_proba:
+        if probability < threshold and prediction[-1] != '9':
+            new_prediction = prediction[:-1] + '9'
+            if new_prediction in available_ssoc_codes.values:
+                print(f'Converting {prediction} to {new_prediction}')
+                out_prediction.append(new_prediction)
+            else:
+                out_prediction.append(prediction)
+        else:
+            out_prediction.append(prediction)
+        out_probability.append(probability)
+
+    return zip(out_prediction, out_probability)
+
+
 def generate_prediction(model,
                         tokenizer,
                         text,
                         target,
                         parameters,
-                        encoding):
+                        top_n_threshold,
+                        available_ssoc_codes,
+                        failsafe=True):
     """
     Predicting on actual text, comparing with actual 5D SSOC value
-
-    Args:
-        model:HierarchicalSSOCClassifier
-            NN architecture
-        loss_function: torch object
-            Cross entropy loss function multiclass loss calculation
-        optimizer: torch object
-            Optimization algorithm for stochastic gradient descent
-        training_loader: torch dataloader
-            Training data in map style torch data format
-        validation_loader: torch dataloader
-            Validation data in map style torch data format
-        parameters: dic
-            Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
 
     Args:
         model:HierarchicalSSOCClassifier
@@ -762,12 +782,16 @@ def generate_prediction(model,
             5D SSOC value
         parameters: dic
             Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
-        encoding: dic
-            Encoding for each SSOC level
+        top_n_threshold: dic
+            Settings for top n digits and thresholds for each X-D SSOC
+        available_ssoc_codes:  pd series
+            All possible SSOC values
+        failsafe: Boolean
+            collapsing SSOC under threshold to Others catagories
 
-    Returns: None
+
+    Returns: dict of zipped prdictions and probabilities
     """
-
     tokenized = tokenizer(
         text=text,
         text_pair=None,
@@ -777,18 +801,89 @@ def generate_prediction(model,
         return_token_type_ids=True,
         truncation=True
     )
+
     test_ids = torch.tensor([tokenized['input_ids']], dtype=torch.long)
     test_mask = torch.tensor([tokenized['attention_mask']], dtype=torch.long)
 
     model.eval()
-    preds = model(test_ids, test_mask)
-    m = torch.nn.Softmax(dim=1)
+    with torch.no_grad():
+        preds = model(test_ids, test_mask)
+        m = torch.nn.Softmax(dim=1)
 
-    predicted_1D = encoding['SSOC_1D']['idx_ssoc'][np.argmax(preds["SSOC_1D"].detach().numpy())]
-    predicted_1D_proba = np.max(m(preds['SSOC_1D']).detach().numpy())
-    predicted_2D = encoding['SSOC_2D']['idx_ssoc'][np.argmax(preds["SSOC_2D"].detach().numpy())]
-    predicted_2D_proba = np.max(m(preds['SSOC_2D']).detach().numpy())
+    predicted_1D_idx = preds["SSOC_1D"].detach().numpy().argsort()[
+        0][::-1][:top_n_threshold["SSOC_1D"]["n_digit"]]
+    predicted_1D = [encoding['SSOC_1D']['idx_ssoc'][idx] for idx in predicted_1D_idx]
+    predicted_1D_proba_all = m(preds['SSOC_1D']).detach().numpy()[0]
+    predicted_1D_proba = [predicted_1D_proba_all[idx] for idx in predicted_1D_idx]
+    predicted_1D_with_proba = zip(predicted_1D, predicted_1D_proba)
+
+    predicted_2D_idx = preds["SSOC_2D"].detach().numpy().argsort()[
+        0][::-1][:top_n_threshold["SSOC_2D"]["n_digit"]]
+    predicted_2D = [encoding['SSOC_2D']['idx_ssoc'][idx] for idx in predicted_2D_idx]
+    predicted_2D_proba_all = m(preds['SSOC_2D']).detach().numpy()[0]
+    predicted_2D_proba = [predicted_2D_proba_all[idx] for idx in predicted_2D_idx]
+    predicted_2D_with_proba = zip(predicted_2D, predicted_2D_proba)
+
+    predicted_3D_idx = preds["SSOC_3D"].detach().numpy().argsort()[
+        0][::-1][:top_n_threshold["SSOC_3D"]["n_digit"]]
+    predicted_3D = [encoding['SSOC_3D']['idx_ssoc'][idx] for idx in predicted_3D_idx]
+    predicted_3D_proba_all = m(preds['SSOC_3D']).detach().numpy()[0]
+    predicted_3D_proba = [predicted_3D_proba_all[idx] for idx in predicted_3D_idx]
+    predicted_3D_with_proba = zip(predicted_3D, predicted_3D_proba)
+
+    predicted_4D_idx = preds["SSOC_4D"].detach().numpy().argsort()[
+        0][::-1][:top_n_threshold["SSOC_4D"]["n_digit"]]
+    predicted_4D = [encoding['SSOC_4D']['idx_ssoc'][idx] for idx in predicted_4D_idx]
+    predicted_4D_proba_all = m(preds['SSOC_4D']).detach().numpy()[0]
+    predicted_4D_proba = [predicted_4D_proba_all[idx] for idx in predicted_4D_idx]
+    predicted_4D_with_proba = zip(predicted_4D, predicted_4D_proba)
+
+    predicted_5D_idx = preds["SSOC_5D"].detach().numpy().argsort()[
+        0][::-1][:top_n_threshold["SSOC_5D"]["n_digit"]]
+    predicted_5D = [encoding['SSOC_5D']['idx_ssoc'][idx] for idx in predicted_5D_idx]
+    predicted_5D_proba_all = m(preds['SSOC_5D']).detach().numpy()[0]
+    predicted_5D_proba = [predicted_5D_proba_all[idx] for idx in predicted_5D_idx]
+    predicted_5D_with_proba = zip(predicted_5D, predicted_5D_proba)
 
     print(f"Target: {target}")
-    print(f"Model predicted 1D: {predicted_1D} ({predicted_1D_proba * 100:.2f}%)")
-    print(f"Model predicted 2D: {predicted_2D} ({predicted_2D_proba * 100:.2f}%)")
+    print(f'Model top {top_n_threshold["SSOC_1D"]["n_digit"]} predicted 1D:')
+    for predicted, prob in predicted_1D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    if failsafe:
+        predicted_2D_with_proba = convert_others_SSOC(
+            predicted_2D_with_proba, top_n_threshold["SSOC_2D"]["threshold"], available_ssoc_codes)
+
+    print(f'Model top {top_n_threshold["SSOC_2D"]["n_digit"]} predicted 2D:')
+    for predicted, prob in predicted_2D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    if failsafe:
+        predicted_3D_with_proba = convert_others_SSOC(
+            predicted_3D_with_proba, top_n_threshold["SSOC_3D"]["threshold"], available_ssoc_codes)
+
+    print(f'Model top {top_n_threshold["SSOC_3D"]["n_digit"]} predicted 3D:')
+    for predicted, prob in predicted_3D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    if failsafe:
+        predicted_4D_with_proba = convert_others_SSOC(
+            predicted_4D_with_proba, top_n_threshold["SSOC_4D"]["threshold"], available_ssoc_codes)
+
+    print(f'Model top {top_n_threshold["SSOC_4D"]["n_digit"]} predicted 4D:')
+    for predicted, prob in predicted_4D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    if failsafe:
+        predicted_5D_with_proba = convert_others_SSOC(
+            predicted_5D_with_proba, top_n_threshold["SSOC_5D"]["threshold"], available_ssoc_codes)
+
+    print(f'Model top {top_n_threshold["SSOC_5D"]["n_digit"]} predicted 5D:')
+    for predicted, prob in predicted_5D_with_proba:
+        print(f'{predicted}: {prob*100:.2f}%')
+
+    return {'SSOC_1D_prediction': predicted_1D_with_proba,
+            'SSOC_2D_prediction': predicted_2D_with_proba,
+            'SSOC_3D_prediction': predicted_3D_with_proba,
+            'SSOC_4D_prediction': predicted_4D_with_proba,
+            'SSOC_5D_prediction': predicted_5D_with_proba}
