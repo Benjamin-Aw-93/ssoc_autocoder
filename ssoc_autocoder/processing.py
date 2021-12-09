@@ -395,6 +395,9 @@ def final_cleaning(processed_text):
     # Remove any special characters at the beginning of each statement
     processed_text = re.sub('(?<=>)\s*(\u2022|\u002d|\u00b7|\d+\.)', '.', processed_text)
 
+    # Replacing any additional special characters
+    processed_text = re.sub('[^\x00-\x7F]+', '.', processed_text)
+
     # Using regex, we remove all possible tags
     # Tags with slashes are replaces with period
     # Tags without slashes are replaced with spaces
