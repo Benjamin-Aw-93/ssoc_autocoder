@@ -40,5 +40,5 @@ test['test_verb_check'].append({
     </ul>''']
 })
 
-with open('test.txt', 'w') as outfile:
+with open('functional_test.json', 'w') as outfile:
     json.dump(test, outfile)
