@@ -24,8 +24,15 @@
   * Notebooks are for exploration and development, scripts are for production. If you need to iterate quickly or you're doing a one-off job, then use notebooks.
   * Always comment your code! 
 * Notebooks
-  * Have separate notebooks for different things you are doing - name it intuitively 
-  * Okay to have a messy notebook when writing lots of code, but clean it up with comments and markdown explanations once things are settled down  
+  * Follow this naming convention: `{YYYY-MM-DD} - {name of notebook}`. This helps to track when the notebook was created and keeps things organised.
+  * Turn the first cell of the notebook into Markdown, and follow the convention below. Leave 2 spaces at the end of each line to do a 'line break'.
+    * `## {name of notebook}`
+    * `**Author:** {your name}`
+    * `**Date:** {DD MMM YYYY}`
+    * `**Context:** {why are you doing this, or any other relevant details to help people understand}`
+    * `**Objective:** {what you hope to do/achieve from this notebook}`
+  * Use different notebooks for different things - try not to mix them together unless you are just exploring / iterating quickly.
+  * Okay to start with a messy notebook, but clean it up with generous Markdown documentation and comments in the code once you are done.
 * Scripts
   * Scripts should be marked as an importable package `ssoc-autocoder` with the appropriate `__init__.py` files. See [Python documentation](https://docs.python.org/3/tutorial/modules.html#packages)
   * Functions for similar purposes can be placed in the same script file (eg `data-processing` or `modelling`)  
@@ -42,7 +49,6 @@
     * Always include a body message to explain the changes and context (doesn't have to be very long)  
   * Pull requests  
     * Create a PR for any non-trivial code changes. PRs should be created in response to issues. Only hotfixes (small, urgent) are excluded from this rule
-    * Name the PR intuitively. Use "feature-XXX_XXX_XXX". For example, "featur
-      e-add-unit-tests"
+    * Name the PR intuitively. Use "feature-XXX_XXX_XXX". For example, "feature-add-unit-tests"
     * PRs must be approved by the other party, not by yourself. 
     * When merging PRs, always use squash and merge  
