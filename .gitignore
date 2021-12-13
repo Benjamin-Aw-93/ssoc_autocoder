@@ -1,11 +1,10 @@
-# created by virtualenv automatically
-
-**/share
-**/Scripts
-**/Lib
-**/Data
-**/my_enviro
-/.idea/
+# Top-level folders to ignore
+/Data
+/Models
 /venv
-/*/.ipynb_checkpoints/*
-/Models/*
+
+# Logging folders to ignore
+/*/.ipynb_checkpoints
+/.pytest_cache
+/*/__pycache__
+/.idea/
