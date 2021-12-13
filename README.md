@@ -1,22 +1,22 @@
 # SSOC Auto-Coder
 
-## Progress
+## General Info
 
-* Getting data
-  * ~~Extract MCF data from Data Lab (Shaun to raise data request)~~
-  * Get labelled data from MRSD (Ben to put data together for Zhihan)
-  * Check if MRSD can generate more labelled data using their internal model (Shaun to check with Zhihan)  
-* Processing data
-  * Refine data extraction function
-  * Write functions as `ssoc-autocoder` package  
-  * Write unit and integration tests  
-* Modelling
-  * Develop taxonomy classification model based on Shopify's approach
-  * Develop custom loss metric for taxonomy classification
-  * Develop catch-all categories for nec SSOCs  
-* Interpretability and fairness
-  * Run SHAP
-  * Check for bias  
+* Project started on 1 Aug 2021
+* Team consists of Shaun Khoo and Benjamin Aw
+* End-users are FWPD (Jasmine Koh and Grace Kong)
+* Current aim is to produce POC by end-Jan 2022
+
+## Timeline
+
+* Aug 2021: Data processing
+* Sep 2021: Data processing
+* Oct 2021: Initial modelling + training on AWS
+* Nov 2021: Data augmentation and manual tagging
+* Dec 2021: Language modelling + model training
+* Jan 2022: Deployment POC
+
+> See [Clickup](https://app.clickup.com/3825139/v/b/s/43633588) for detailed tasks and deadlines
 
 ## Style Guide
 
@@ -52,3 +52,9 @@
     * Name the PR intuitively. Use "feature-XXX_XXX_XXX". For example, "feature-add-unit-tests"
     * PRs must be approved by the other party, not by yourself. 
     * When merging PRs, always use squash and merge  
+
+## Parking Lot
+
+* Interpretability and fairness
+  * Understand how and why the model is predicting specific SSOCs
+  * Fairness assessment of the types of JDs and the respective error rates
