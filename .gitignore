@@ -8,3 +8,9 @@
 /.pytest_cache
 /*/__pycache__
 /.idea/
+/cache_dir/
+/etc/
+/Lib/
+/runs/
+/Scripts/
+/share/
