@@ -12,7 +12,7 @@ nlp = spacy.load('en_core_web_lg')
 
 # Load verbosity ideally should load in command line, write as -v tag in cmd
 # Should load load at the start of the script
-verbosity = False  # default value
+verbosity = True  # default value
 
 verboseprinter = verboseprint(verbosity)
 
