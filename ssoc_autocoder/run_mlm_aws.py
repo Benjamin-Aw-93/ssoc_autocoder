@@ -203,13 +203,27 @@ def main():
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
-    
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    ###################
+    ## START OF EDIT ##
+
+    # Overriding some arguments with the Sagemaker-specific variables
+    data_args.train_file = os.path.join(os.environ['SM_CHANNEL_TRAINING'], data_args.train_file)
+    training_args.output_dir = os.path.join(os.environ['SM_MODEL_DIR'], training_args.output_dir)
+
+    # Changing the custom batch size
+    training_args.per_device_train_batch_size = 16
+    training_args.per_device_eval_batch_size = 32
+    training_args.num_train_epochs = 1
+
+    ## END OF EDIT ##
+    #################
 
     # Setup logging
     logging.basicConfig(
@@ -409,7 +423,7 @@ def main():
             tokenized_datasets = raw_datasets.map(
                 tokenize_function,
                 batched=True,
-                batch_size=2,
+                batch_size=training_args.per_device_train_batch_size,
                 num_proc=data_args.preprocessing_num_workers,
                 remove_columns=[text_column_name],
                 load_from_cache_file=not data_args.overwrite_cache,
@@ -488,9 +502,6 @@ def main():
         pad_to_multiple_of=8 if pad_to_multiple_of_8 else None,
     )
 
-    # Changing the custom batch size
-    training_args.per_device_train_batch_size = 2
-
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
@@ -552,11 +563,6 @@ def main():
     else:
         trainer.create_model_card(**kwargs)
 
-
-def _mp_fn(index):
-    # For xla_spawn (TPUs)
-    main()
-
-
 if __name__ == "__main__":
+
     main()
