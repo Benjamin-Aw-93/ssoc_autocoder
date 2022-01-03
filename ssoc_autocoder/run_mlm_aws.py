@@ -214,13 +214,14 @@ def main():
     ## START OF EDIT ##
 
     # Overriding some arguments with the Sagemaker-specific variables
+    model_args.model_name_or_path = os.path.join(os.environ['SM_CHANNEL_TRAINING'], model_args.model_name_or_path)
     data_args.train_file = os.path.join(os.environ['SM_CHANNEL_TRAINING'], data_args.train_file)
     training_args.output_dir = os.path.join(os.environ['SM_MODEL_DIR'], training_args.output_dir)
 
     # Changing the custom batch size
     training_args.per_device_train_batch_size = 16
     training_args.per_device_eval_batch_size = 32
-    training_args.num_train_epochs = 1
+    training_args.num_train_epochs = 2
 
     ## END OF EDIT ##
     #################
@@ -385,12 +386,12 @@ def main():
 
     if data_args.max_seq_length is None:
         max_seq_length = tokenizer.model_max_length
-        if max_seq_length > 1024:
+        if max_seq_length > 512:
             logger.warning(
                 f"The tokenizer picked seems to have a very large `model_max_length` ({tokenizer.model_max_length}). "
-                "Picking 1024 instead. You can change that default value by passing --max_seq_length xxx."
+                "Picking 512 instead. You can change that default value by passing --max_seq_length xxx."
             )
-            max_seq_length = 1024
+            max_seq_length = 512
     else:
         if data_args.max_seq_length > tokenizer.model_max_length:
             logger.warning(

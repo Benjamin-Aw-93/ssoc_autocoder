@@ -182,7 +182,8 @@ class SSOC_Dataset(Dataset):
         return self.len
 
 
-def prepare_data(encoded_data,
+def prepare_data(encoded_train,
+                 encoded_test,
                  tokenizer,
                  colnames,
                  parameters):
@@ -191,8 +192,10 @@ def prepare_data(encoded_data,
     Dataloader allows dataset to be represented as a Python iterable in a map-style format
 
     Args:
-        encoded_data: pandas dataframe
-            Base data with SSOC xD
+        encoded_train: pandas dataframe
+            Train data with SSOC encoded into indices
+        encoded_test: pandas dataframe
+            Test data with SSOC encoded into indices
         colnames: dic
             Column name mappings key: standardized, value: actual naming
         parameters: dic
@@ -207,20 +210,13 @@ def prepare_data(encoded_data,
 
     """
 
-    # Split the dataset into training and validation with a 20% split
-    training_data, validation_data = train_test_split(encoded_data,
-                                                      test_size=0.2,
-                                                      random_state=2021)
-    training_data.reset_index(drop=True, inplace=True)
-    validation_data.reset_index(drop=True, inplace=True)
-
     # Creating the dataset and dataloader for the neural network
-    training_loader = DataLoader(SSOC_Dataset(training_data, tokenizer, parameters['sequence_max_length'], colnames, parameters['architecture']),
+    training_loader = DataLoader(SSOC_Dataset(encoded_train, tokenizer, parameters['sequence_max_length'], colnames, parameters['architecture']),
                                  batch_size=parameters['training_batch_size'],
                                  num_workers=parameters['num_workers'],
                                  shuffle=True,
                                  pin_memory=True)
-    validation_loader = DataLoader(SSOC_Dataset(validation_data, tokenizer, parameters['sequence_max_length'], colnames, parameters['architecture']),
+    validation_loader = DataLoader(SSOC_Dataset(encoded_test, tokenizer, parameters['sequence_max_length'], colnames, parameters['architecture']),
                                    batch_size=parameters['training_batch_size'],
                                    num_workers=parameters['num_workers'],
                                    shuffle=True,
@@ -249,27 +245,27 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
 
     """
 
-    def __init__(self, training_parameters, encoding):
+    def __init__(self, training_parameters):
 
         self.training_parameters = training_parameters
-        self.encoding = encoding
 
         # Initialise the class, not sure exactly what this does
         # Ben: Should be similar to super()?
         super(HierarchicalSSOCClassifier, self).__init__()
 
         # Load the DistilBert model which will generate the embeddings
-        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'])
+        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'], 
+                                                  local_files_only = self.training_parameters['model_on_local_disk'])
 
         for param in self.l1.parameters():
             param.requires_grad = False
 
         # Generate counts of each digit SSOCs
-        SSOC_1D_count = len(self.encoding['SSOC_1D']['ssoc_idx'].keys())
-        SSOC_2D_count = len(self.encoding['SSOC_2D']['ssoc_idx'].keys())
-        SSOC_3D_count = len(self.encoding['SSOC_3D']['ssoc_idx'].keys())
-        SSOC_4D_count = len(self.encoding['SSOC_4D']['ssoc_idx'].keys())
-        SSOC_5D_count = len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
+        SSOC_1D_count = 9 #len(self.encoding['SSOC_1D']['ssoc_idx'].keys())
+        SSOC_2D_count = 42 #len(self.encoding['SSOC_2D']['ssoc_idx'].keys())
+        SSOC_3D_count = 144 #len(self.encoding['SSOC_3D']['ssoc_idx'].keys())
+        SSOC_4D_count = 413 #len(self.encoding['SSOC_4D']['ssoc_idx'].keys())
+        SSOC_5D_count = 997 #len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
 
         # Stack 1: Predicting 1D SSOC (9)
         if self.training_parameters['max_level'] >= 1:
@@ -441,10 +437,9 @@ class StraightThruSSOCClassifier(torch.nn.Module):
 
     """
 
-    def __init__(self, training_parameters, encoding):
+    def __init__(self, training_parameters):
 
         self.training_parameters = training_parameters
-        self.encoding = encoding
 
         # Initialise the class, not sure exactly what this does
         # Ben: Should be similar to super()?
@@ -507,8 +502,6 @@ def prepare_model(encoding, parameters):
             Encoding for each SSOC level
 
     Returns:
-        which: string
-            Which model to run on, stright through or hierarchical
         model: forward prop architecture
             NN architecture representation
         loss_function: torch object
@@ -521,9 +514,9 @@ def prepare_model(encoding, parameters):
     # Setting NN architeture
 
     if parameters["architecture"] == "hierarchical":
-        model = HierarchicalSSOCClassifier(parameters, encoding)
+        model = HierarchicalSSOCClassifier(parameters)
     elif parameters["architecture"] == "straight":
-        model = StraightThruSSOCClassifier(parameters, encoding)
+        model = StraightThruSSOCClassifier(parameters)
     else:
         raise InputError(
             "Choose which model to run: Set in parameters hierarchical or straight through")
