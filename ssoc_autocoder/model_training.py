@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import time
 from datetime import datetime
+import json
 
 # Neural network libraries
 import torch
@@ -66,6 +67,40 @@ def generate_encoding(reference_data, ssoc_colname='SSOC 2020'):
 
     return encoding
 
+def import_ssoc_idx_encoding(filename):
+    """
+    Imports the SSOC-index encoding and formats it correctly.
+    
+    Args:
+        filename: Path to the SSOC-index encoding JSON file
+    Returns:
+        SSOC-index encoding correctly formatted as a dictionary
+    """
+
+    # Open and load the JSON file as a dictionary
+    with open(filename) as json_file:
+        unformatted_dict = json.load(json_file)
+        
+    # Initialise the output dictionary object
+    output_dict = {}
+    
+    # Iterate through each SSOC level in the encoding
+    for ssoc_level in unformatted_dict.keys():
+        
+        # Initialise the key:value pair for each SSOC level
+        output_dict[ssoc_level] = {
+            'ssoc_idx': {},
+            'idx_ssoc': {}
+        }
+        
+        # Directly copy of the ssoc_idx object since this is formatted correctly
+        output_dict[ssoc_level]['ssoc_idx'] = unformatted_dict[ssoc_level]['ssoc_idx']
+        
+        # For the idx_ssoc object, format the key as a number instead of a string
+        for key, value in unformatted_dict[ssoc_level]['idx_ssoc'].items():
+            output_dict[ssoc_level]['idx_ssoc'][int(key)] = value
+            
+    return output_dict
 
 def encode_dataset(data,
                    encoding,
