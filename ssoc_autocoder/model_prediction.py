@@ -20,7 +20,8 @@ ssoc_prediction_parameters = {
     'SSOC_5D': {'top_n': 10, 'min_prob': 0.1}
 }
 
-def model_predict(model_filepath, 
+def model_predict(pretrained_filepath,
+                  model_filepath, 
                   tokenizer_filepath, 
                   ssoc_idx_encoding_filepath, 
                   text):
@@ -32,7 +33,8 @@ def model_predict(model_filepath,
     any options for passing in a target since it is assumed that we are
     generating predictions for unseen data.
 
-    Args
+    Args:
+        pretrained_filepath: Path to the pretrained model (folder)
         model_filepath: Path to the model state_dict PyTorch object (.pt)
         tokenizer_filepath: Path to the pretrained DistilBERT tokenizer folder
         ssoc_idx_encoding_filepath: Path to the JSON file containing the SSOC encoding
@@ -42,7 +44,7 @@ def model_predict(model_filepath,
     """
 
     model_parameters = {
-        'pretrained_model': model_filepath,
+        'pretrained_model': pretrained_filepath,
         'local_files_only': True,
         'max_level': 5
     }
