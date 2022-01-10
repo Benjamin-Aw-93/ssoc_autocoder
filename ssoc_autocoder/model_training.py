@@ -125,8 +125,8 @@ def encode_dataset(data,
     encoded_data = deepcopy(data)[data[colnames['SSOC']].notnull()]
 
     # Subset the dataframe for only the required 2 columns
-    encoded_data = encoded_data[[colnames['job_description'], colnames['SSOC']]]
-    encoded_data.columns = ['Text', 'SSOC']
+    encoded_data = encoded_data[[colnames['job_title'], colnames['job_description'], colnames['SSOC']]]
+    encoded_data.columns = ['Title', 'Text', 'SSOC']
 
     # For each digit, encode the SSOC correctly
     for ssoc_level, encodings in encoding.items():
@@ -174,12 +174,23 @@ class SSOC_Dataset(Dataset):
     # Define the iterable over the Dataset object
     def __getitem__(self, index):
 
-        # Extract the text
-        # NEED TO FIX THIS
+        # Extract the job title and text
+        # Note that these have been set when encoding the dataset
+        title = self.data.Title[index]
         text = self.data.Text[index]
 
         # Pass in the data into the tokenizer
-        inputs = self.tokenizer(
+        title_inputs = self.tokenizer(
+            text=text,
+            text_pair=None,
+            add_special_tokens=True,
+            max_length=self.max_len,
+            padding='max_length',
+            return_token_type_ids=True,
+            truncation=True
+        )
+
+        text_inputs = self.tokenizer(
             text=text,
             text_pair=None,
             add_special_tokens=True,
@@ -190,14 +201,18 @@ class SSOC_Dataset(Dataset):
         )
 
         # Extract the IDs and attention mask
-        ids = inputs['input_ids']
-        mask = inputs['attention_mask']
+        title_ids = title_inputs['input_ids']
+        title_mask = title_inputs['attention_mask']
+        text_ids = text_inputs['input_ids']
+        text_mask = text_inputs['attention_mask']
 
         # Return all the outputs needed for training and evaluation
         if self.architecture == "hierarchical":
             return {
-                'ids': torch.tensor(ids, dtype=torch.long),
-                'mask': torch.tensor(mask, dtype=torch.long),
+                'title_ids': torch.tensor(title_ids, dtype=torch.long),
+                'title_mask': torch.tensor(title_mask, dtype=torch.long),
+                'text_ids': torch.tensor(text_ids, dtype=torch.long),
+                'text_mask': torch.tensor(text_mask, dtype=torch.long),
                 'SSOC_1D': torch.tensor(self.data.SSOC_1D[index], dtype=torch.long),
                 'SSOC_2D': torch.tensor(self.data.SSOC_2D[index], dtype=torch.long),
                 'SSOC_3D': torch.tensor(self.data.SSOC_3D[index], dtype=torch.long),
@@ -206,8 +221,10 @@ class SSOC_Dataset(Dataset):
             }
         elif self.architecture == "straight":
             return {
-                'ids': torch.tensor(ids, dtype=torch.long),
-                'mask': torch.tensor(mask, dtype=torch.long),
+                'title_ids': torch.tensor(title_ids, dtype=torch.long),
+                'title_mask': torch.tensor(title_mask, dtype=torch.long),
+                'text_ids': torch.tensor(text_ids, dtype=torch.long),
+                'text_mask': torch.tensor(text_mask, dtype=torch.long),
                 'SSOC_5D': torch.tensor(self.data.SSOC_5D[index], dtype=torch.long),
             }
 
@@ -259,48 +276,54 @@ def prepare_data(encoded_train,
 
     return training_loader, validation_loader
 
-
-class HierarchicalSSOCClassifier(torch.nn.Module):
+class HierarchicalSSOCClassifier_V1(torch.nn.Module):
     """
     Class to represent NN architecture.
     Inherits torch.nn.Module, base class for all NN modules
     ...
-
     Attributes
     ----------
     training_parameters: pandas dataframe
         Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
     encoding: dicitonary
         Encoding for each SSOC level
-
     Methods
     ----------
     forward: dict
         predictions batch size by length of target SSOC_xD
-
     """
 
-    def __init__(self, training_parameters):
+    def __init__(self, training_parameters, encoding):
 
         self.training_parameters = training_parameters
+        self.encoding = encoding
 
         # Initialise the class, not sure exactly what this does
         # Ben: Should be similar to super()?
-        super(HierarchicalSSOCClassifier, self).__init__()
+        super(HierarchicalSSOCClassifier_V1, self).__init__()
+
+        from transformers.models.distilbert.configuration_distilbert import DistilBertConfig
+
+        self.config = DistilBertConfig(
+            id2label = encoding['SSOC_5D']['idx_ssoc'],
+            label2id = encoding['SSOC_5D']['ssoc_idx']
+        )
+
+        self.base_model_prefix = 'l1'
+        self.device = 'cpu'
 
         # Load the DistilBert model which will generate the embeddings
-        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'], 
-                                                  local_files_only = self.training_parameters['model_on_local_disk'])
+        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'])
 
         for param in self.l1.parameters():
             param.requires_grad = False
 
         # Generate counts of each digit SSOCs
-        SSOC_1D_count = 9 #len(self.encoding['SSOC_1D']['ssoc_idx'].keys())
-        SSOC_2D_count = 42 #len(self.encoding['SSOC_2D']['ssoc_idx'].keys())
-        SSOC_3D_count = 144 #len(self.encoding['SSOC_3D']['ssoc_idx'].keys())
-        SSOC_4D_count = 413 #len(self.encoding['SSOC_4D']['ssoc_idx'].keys())
-        SSOC_5D_count = 997 #len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
+        SSOC_1D_count = len(self.encoding['SSOC_1D']['ssoc_idx'].keys())
+        SSOC_2D_count = len(self.encoding['SSOC_2D']['ssoc_idx'].keys())
+        SSOC_3D_count = len(self.encoding['SSOC_3D']['ssoc_idx'].keys())
+        SSOC_4D_count = len(self.encoding['SSOC_4D']['ssoc_idx'].keys())
+        SSOC_5D_count = len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
 
         # Stack 1: Predicting 1D SSOC (9)
         if self.training_parameters['max_level'] >= 1:
@@ -415,6 +438,9 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
                 torch.nn.Linear(n_dims_5d, SSOC_5D_count)
             )
 
+    def get_input_embeddings(self):
+        return self.l1.embeddings.word_embeddings
+
     def forward(self, input_ids, attention_mask):
 
         # Obtain the sentence embeddings from the DistilBERT model
@@ -451,6 +477,515 @@ class HierarchicalSSOCClassifier(torch.nn.Module):
 
         return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
 
+class HierarchicalSSOCClassifier_V2(torch.nn.Module):
+    """
+    Class to represent NN architecture.
+    Inherits torch.nn.Module, base class for all NN modules
+    ...
+
+    Attributes
+    ----------
+    training_parameters: pandas dataframe
+        Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
+    encoding: dicitonary
+        Encoding for each SSOC level
+
+    Methods
+    ----------
+    forward: dict
+        predictions batch size by length of target SSOC_xD
+
+    """
+
+    def __init__(self, training_parameters):
+
+        self.training_parameters = training_parameters
+
+        # Initialise the class, not sure exactly what this does
+        # Ben: Should be similar to super()?
+        super(HierarchicalSSOCClassifier_V2, self).__init__()
+
+        # Load the DistilBert model which will generate the embeddings
+        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'], 
+                                                  local_files_only = self.training_parameters['local_files_only'])
+
+        for param in self.l1.parameters():
+            param.requires_grad = False
+
+        # Generate counts of each digit SSOCs
+        SSOC_1D_count = 9 #len(self.encoding['SSOC_1D']['ssoc_idx'].keys())
+        SSOC_2D_count = 42 #len(self.encoding['SSOC_2D']['ssoc_idx'].keys())
+        SSOC_3D_count = 144 #len(self.encoding['SSOC_3D']['ssoc_idx'].keys())
+        SSOC_4D_count = 413 #len(self.encoding['SSOC_4D']['ssoc_idx'].keys())
+        SSOC_5D_count = 997 #len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
+
+        # Stack 1: Predicting 1D SSOC (9)
+        if self.training_parameters['max_level'] >= 1:
+            self.ssoc_1d_stack = torch.nn.Sequential(
+                torch.nn.Linear(1536, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 128),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(128, SSOC_1D_count)
+            )
+
+        # Stack 2: Predicting 2D SSOC (42)
+        if self.training_parameters['max_level'] >= 2:
+
+            # Adding the predictions from Stack 1 to the word embeddings
+            # n_dims_2d = 1545
+            n_dims_2d = 1536 + SSOC_1D_count
+
+            self.ssoc_2d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_2d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 256),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(256, 128),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(128, SSOC_2D_count)
+            )
+
+        # Stack 3: Predicting 3D SSOC (144)
+        if self.training_parameters['max_level'] >= 3:
+
+            # Adding the predictions from Stacks 1 and 2 to the word embeddings
+            # n_dims_3d = 1587
+            n_dims_3d = 1536 + SSOC_1D_count + SSOC_2D_count
+
+            self.ssoc_3d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_3d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, 256),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(256, SSOC_3D_count)
+            )
+
+        # Stack 4: Predicting 4D SSOC (413)
+        if self.training_parameters['max_level'] >= 4:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_4d = 1731
+            n_dims_4d = 1536 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count
+
+            self.ssoc_4d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_4d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, SSOC_4D_count)
+            )
+
+        # Stack 5: Predicting 5D SSOC (997)
+        if self.training_parameters['max_level'] >= 5:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_5d = 2144
+            n_dims_5d = 1536 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count + SSOC_4D_count
+
+            self.ssoc_5d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, n_dims_5d),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(n_dims_5d, 2048),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(2048, 1024),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(1024, SSOC_5D_count)
+            )
+
+    def forward(self, title_ids, title_mask, text_ids, text_mask):
+
+        # Obtain the sentence embeddings from the DistilBERT model
+        # Do this for both the job title and description text
+        title_embeddings = self.l1(input_ids = title_ids, attention_mask = title_mask)
+        title_hidden_state = title_embeddings[0]
+        title_vec = title_hidden_state[:, 0]
+
+        text_embeddings = self.l1(input_ids = text_ids, attention_mask = text_mask)
+        text_hidden_state = text_embeddings[0]
+        text_vec = text_hidden_state[:, 0]
+
+        # Concatenate both vectors together
+        X = torch.cat((title_vec, text_vec), dim = 1)
+
+        # Initialise a dictionary to hold all the predictions
+        predictions = {}
+
+        # 1D Prediction
+        if self.training_parameters['max_level'] >= 1:
+            predictions['SSOC_1D'] = self.ssoc_1d_stack(X)
+
+        # 2D Prediction
+        if self.training_parameters['max_level'] >= 2:
+            X = torch.cat((X, predictions['SSOC_1D']), dim=1)
+            predictions['SSOC_2D'] = self.ssoc_2d_stack(X)
+
+        # 3D Prediction
+        if self.training_parameters['max_level'] >= 3:
+            X = torch.cat((X, predictions['SSOC_2D']), dim=1)
+            predictions['SSOC_3D'] = self.ssoc_3d_stack(X)
+
+        # 4D Prediction
+        if self.training_parameters['max_level'] >= 4:
+            X = torch.cat((X, predictions['SSOC_3D']), dim=1)
+            predictions['SSOC_4D'] = self.ssoc_4d_stack(X)
+
+        # 5D Prediction
+        if self.training_parameters['max_level'] >= 5:
+            X = torch.cat((X, predictions['SSOC_4D']), dim=1)
+            predictions['SSOC_5D'] = self.ssoc_5d_stack(X)
+
+        return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
+
+class HierarchicalSSOCClassifier_V2pt1(torch.nn.Module):
+    """
+    Class to represent NN architecture.
+    Inherits torch.nn.Module, base class for all NN modules
+    ...
+
+    Attributes
+    ----------
+    training_parameters: pandas dataframe
+        Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
+    encoding: dicitonary
+        Encoding for each SSOC level
+
+    Methods
+    ----------
+    forward: dict
+        predictions batch size by length of target SSOC_xD
+
+    """
+
+    def __init__(self, training_parameters):
+
+        self.training_parameters = training_parameters
+
+        # Initialise the class, not sure exactly what this does
+        # Ben: Should be similar to super()?
+        super(HierarchicalSSOCClassifier_V2pt1, self).__init__()
+
+        # Load the DistilBert model which will generate the embeddings
+        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'], 
+                                                  local_files_only = self.training_parameters['local_files_only'])
+
+        for param in self.l1.parameters():
+            param.requires_grad = False
+
+        # Generate counts of each digit SSOCs
+        SSOC_1D_count = 9 #len(self.encoding['SSOC_1D']['ssoc_idx'].keys())
+        SSOC_2D_count = 42 #len(self.encoding['SSOC_2D']['ssoc_idx'].keys())
+        SSOC_3D_count = 144 #len(self.encoding['SSOC_3D']['ssoc_idx'].keys())
+        SSOC_4D_count = 413 #len(self.encoding['SSOC_4D']['ssoc_idx'].keys())
+        SSOC_5D_count = 997 #len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
+
+        # Stack 1: Predicting 1D SSOC (9)
+        if self.training_parameters['max_level'] >= 1:
+            self.ssoc_1d_stack = torch.nn.Sequential(
+                torch.nn.Linear(1536, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 128),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(128, SSOC_1D_count)
+            )
+
+        # Stack 2: Predicting 2D SSOC (42)
+        if self.training_parameters['max_level'] >= 2:
+
+            # Adding the predictions from Stack 1 to the word embeddings
+            # n_dims_2d = 1545
+            n_dims_2d = 1536 + SSOC_1D_count
+
+            self.ssoc_2d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_2d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 128),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(128, SSOC_2D_count)
+            )
+
+        # Stack 3: Predicting 3D SSOC (144)
+        if self.training_parameters['max_level'] >= 3:
+
+            # Adding the predictions from Stacks 1 and 2 to the word embeddings
+            # n_dims_3d = 1587
+            n_dims_3d = 1536 + SSOC_1D_count + SSOC_2D_count
+
+            self.ssoc_3d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_3d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 256),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(256, SSOC_3D_count)
+            )
+
+        # Stack 4: Predicting 4D SSOC (413)
+        if self.training_parameters['max_level'] >= 4:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_4d = 1731
+            n_dims_4d = 1536 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count
+
+            self.ssoc_4d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_4d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, SSOC_4D_count)
+            )
+
+        # Stack 5: Predicting 5D SSOC (997)
+        if self.training_parameters['max_level'] >= 5:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_5d = 2144
+            n_dims_5d = 1536 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count + SSOC_4D_count
+
+            self.ssoc_5d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_5d, 2048),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(2048, 1024),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(1024, SSOC_5D_count)
+            )
+
+    def forward(self, title_ids, title_mask, text_ids, text_mask):
+
+        # Obtain the sentence embeddings from the DistilBERT model
+        # Do this for both the job title and description text
+        title_embeddings = self.l1(input_ids = title_ids, attention_mask = title_mask)
+        title_hidden_state = title_embeddings[0]
+        title_vec = title_hidden_state[:, 0]
+
+        text_embeddings = self.l1(input_ids = text_ids, attention_mask = text_mask)
+        text_hidden_state = text_embeddings[0]
+        text_vec = text_hidden_state[:, 0]
+
+        # Concatenate both vectors together
+        X = torch.cat((title_vec, text_vec), dim = 1)
+
+        # Initialise a dictionary to hold all the predictions
+        predictions = {}
+
+        # 1D Prediction
+        if self.training_parameters['max_level'] >= 1:
+            predictions['SSOC_1D'] = self.ssoc_1d_stack(X)
+
+        # 2D Prediction
+        if self.training_parameters['max_level'] >= 2:
+            X = torch.cat((X, predictions['SSOC_1D']), dim=1)
+            predictions['SSOC_2D'] = self.ssoc_2d_stack(X)
+
+        # 3D Prediction
+        if self.training_parameters['max_level'] >= 3:
+            X = torch.cat((X, predictions['SSOC_2D']), dim=1)
+            predictions['SSOC_3D'] = self.ssoc_3d_stack(X)
+
+        # 4D Prediction
+        if self.training_parameters['max_level'] >= 4:
+            X = torch.cat((X, predictions['SSOC_3D']), dim=1)
+            predictions['SSOC_4D'] = self.ssoc_4d_stack(X)
+
+        # 5D Prediction
+        if self.training_parameters['max_level'] >= 5:
+            X = torch.cat((X, predictions['SSOC_4D']), dim=1)
+            predictions['SSOC_5D'] = self.ssoc_5d_stack(X)
+
+        return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
+
+class HierarchicalSSOCClassifier_V2pt2(torch.nn.Module):
+    """
+    Class to represent NN architecture.
+    Inherits torch.nn.Module, base class for all NN modules
+    ...
+
+    Attributes
+    ----------
+    training_parameters: pandas dataframe
+        Captures base information such as hyperparameters, node workers numbers, ssoc_encoding
+    encoding: dicitonary
+        Encoding for each SSOC level
+
+    Methods
+    ----------
+    forward: dict
+        predictions batch size by length of target SSOC_xD
+
+    """
+
+    def __init__(self, training_parameters):
+
+        self.training_parameters = training_parameters
+
+        # Initialise the class, not sure exactly what this does
+        # Ben: Should be similar to super()?
+        super(HierarchicalSSOCClassifier_V2pt2, self).__init__()
+
+        # Load the DistilBert model which will generate the embeddings
+        self.l1 = DistilBertModel.from_pretrained(self.training_parameters['pretrained_model'], 
+                                                  local_files_only = self.training_parameters['local_files_only'])
+
+        for param in self.l1.parameters():
+            param.requires_grad = False
+
+        # Generate counts of each digit SSOCs
+        SSOC_1D_count = 9 #len(self.encoding['SSOC_1D']['ssoc_idx'].keys())
+        SSOC_2D_count = 42 #len(self.encoding['SSOC_2D']['ssoc_idx'].keys())
+        SSOC_3D_count = 144 #len(self.encoding['SSOC_3D']['ssoc_idx'].keys())
+        SSOC_4D_count = 413 #len(self.encoding['SSOC_4D']['ssoc_idx'].keys())
+        SSOC_5D_count = 997 #len(self.encoding['SSOC_5D']['ssoc_idx'].keys())
+
+        # Stack 1: Predicting 1D SSOC (9)
+        if self.training_parameters['max_level'] >= 1:
+            self.ssoc_1d_stack = torch.nn.Sequential(
+                torch.nn.Linear(1536, 128),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(128, SSOC_1D_count)
+            )
+
+        # Stack 2: Predicting 2D SSOC (42)
+        if self.training_parameters['max_level'] >= 2:
+
+            # Adding the predictions from Stack 1 to the word embeddings
+            # n_dims_2d = 1545
+            n_dims_2d = 1536 + SSOC_1D_count
+
+            self.ssoc_2d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_2d, 256),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(256, SSOC_2D_count)
+            )
+
+        # Stack 3: Predicting 3D SSOC (144)
+        if self.training_parameters['max_level'] >= 3:
+
+            # Adding the predictions from Stacks 1 and 2 to the word embeddings
+            # n_dims_3d = 1587
+            n_dims_3d = 1536 + SSOC_1D_count + SSOC_2D_count
+
+            self.ssoc_3d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_3d, 512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(512, SSOC_3D_count)
+            )
+
+        # Stack 4: Predicting 4D SSOC (413)
+        if self.training_parameters['max_level'] >= 4:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_4d = 1731
+            n_dims_4d = 1536 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count
+
+            self.ssoc_4d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_4d, 768),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(768, SSOC_4D_count)
+            )
+
+        # Stack 5: Predicting 5D SSOC (997)
+        if self.training_parameters['max_level'] >= 5:
+
+            # Adding the predictions from Stacks 1, 2, and 3 to the word embeddings
+            # n_dims_5d = 2144
+            n_dims_5d = 1536 + SSOC_1D_count + SSOC_2D_count + SSOC_3D_count + SSOC_4D_count
+
+            self.ssoc_5d_stack = torch.nn.Sequential(
+                torch.nn.Linear(n_dims_5d, 1024),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(1024, SSOC_5D_count)
+            )
+
+    def forward(self, title_ids, title_mask, text_ids, text_mask):
+
+        # Obtain the sentence embeddings from the DistilBERT model
+        # Do this for both the job title and description text
+        title_embeddings = self.l1(input_ids = title_ids, attention_mask = title_mask)
+        title_hidden_state = title_embeddings[0]
+        title_vec = title_hidden_state[:, 0]
+
+        text_embeddings = self.l1(input_ids = text_ids, attention_mask = text_mask)
+        text_hidden_state = text_embeddings[0]
+        text_vec = text_hidden_state[:, 0]
+
+        # Concatenate both vectors together
+        X = torch.cat((title_vec, text_vec), dim = 1)
+
+        # Initialise a dictionary to hold all the predictions
+        predictions = {}
+
+        # 1D Prediction
+        if self.training_parameters['max_level'] >= 1:
+            predictions['SSOC_1D'] = self.ssoc_1d_stack(X)
+
+        # 2D Prediction
+        if self.training_parameters['max_level'] >= 2:
+            X = torch.cat((X, predictions['SSOC_1D']), dim=1)
+            predictions['SSOC_2D'] = self.ssoc_2d_stack(X)
+
+        # 3D Prediction
+        if self.training_parameters['max_level'] >= 3:
+            X = torch.cat((X, predictions['SSOC_2D']), dim=1)
+            predictions['SSOC_3D'] = self.ssoc_3d_stack(X)
+
+        # 4D Prediction
+        if self.training_parameters['max_level'] >= 4:
+            X = torch.cat((X, predictions['SSOC_3D']), dim=1)
+            predictions['SSOC_4D'] = self.ssoc_4d_stack(X)
+
+        # 5D Prediction
+        if self.training_parameters['max_level'] >= 5:
+            X = torch.cat((X, predictions['SSOC_4D']), dim=1)
+            predictions['SSOC_5D'] = self.ssoc_5d_stack(X)
+
+        return {f'SSOC_{i}D': predictions[f'SSOC_{i}D'] for i in range(1, self.training_parameters['max_level'] + 1)}
 
 class StraightThruSSOCClassifier(torch.nn.Module):
     """
@@ -491,10 +1026,10 @@ class StraightThruSSOCClassifier(torch.nn.Module):
 
         # Remove all layers keep last stack
         self.ssoc_5d_stack = torch.nn.Sequential(
-            torch.nn.Linear(768, 768),
+            torch.nn.Linear(1536, 1536),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.3),
-            torch.nn.Linear(768, 1024),
+            torch.nn.Linear(1536, 1024),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.3),
             torch.nn.Linear(1024, 3072),
@@ -509,12 +1044,20 @@ class StraightThruSSOCClassifier(torch.nn.Module):
             torch.nn.Linear(1024, SSOC_5D_count)
         )
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, title_ids, title_mask, text_ids, text_mask):
 
         # Obtain the sentence embeddings from the DistilBERT model
-        embeddings = self.l1(input_ids=input_ids, attention_mask=attention_mask)
-        hidden_state = embeddings[0]
-        X = hidden_state[:, 0]
+        # Do this for both the job title and description text
+        title_embeddings = self.l1(input_ids = title_ids, attention_mask=title_mask)
+        title_hidden_state = title_embeddings[0]
+        title_vec = title_hidden_state[:, 0]
+
+        text_embeddings = self.l1(input_ids = text_ids, attention_mask=text_mask)
+        text_hidden_state = text_embeddings[0]
+        text_vec = text_hidden_state[:, 0]
+
+        # Concatenate both vectors together
+        X = torch.cat(title_vec, text_vec)
 
         # Initialise a dictionary to hold all the predictions
         predictions = {}
@@ -549,7 +1092,14 @@ def prepare_model(encoding, parameters):
     # Setting NN architeture
 
     if parameters["architecture"] == "hierarchical":
-        model = HierarchicalSSOCClassifier(parameters)
+        if parameters["version"] == "V1":
+            model = HierarchicalSSOCClassifier_V1(parameters, encoding)
+        elif parameters["version"] == "V2":
+            model = HierarchicalSSOCClassifier_V2(parameters)
+        elif parameters["version"] == "V2pt1":
+            model = HierarchicalSSOCClassifier_V2pt1(parameters)
+        elif parameters["version"] == 'V2pt2':
+            model = HierarchicalSSOCClassifier_V2pt2(parameters)
     elif parameters["architecture"] == "straight":
         model = StraightThruSSOCClassifier(parameters)
     else:
@@ -632,11 +1182,13 @@ def train_model(model,
         for batch, data in enumerate(training_loader):
 
             # Extract the data
-            ids = data['ids'].to(parameters['device'], dtype=torch.long)
-            mask = data['mask'].to(parameters['device'], dtype=torch.long)
+            title_ids = data['title_ids'].to(parameters['device'], dtype=torch.long)
+            title_mask = data['title_mask'].to(parameters['device'], dtype=torch.long)
+            text_ids = data['text_ids'].to(parameters['device'], dtype=torch.long)
+            text_mask = data['text_mask'].to(parameters['device'], dtype=torch.long)
 
             # Run the forward prop
-            predictions = model(ids, mask)
+            predictions = model(title_ids, title_mask, text_ids, text_mask)
 
             # Iterate through each SSOC level
             for ssoc_level, preds in predictions.items():
@@ -701,11 +1253,13 @@ def train_model(model,
             for batch, data in enumerate(validation_loader):
 
                 # Extract the data
-                ids = data['ids'].to(parameters['device'], dtype=torch.long)
-                mask = data['mask'].to(parameters['device'], dtype=torch.long)
+                title_ids = data['title_ids'].to(parameters['device'], dtype=torch.long)
+                title_mask = data['title_mask'].to(parameters['device'], dtype=torch.long)
+                text_ids = data['text_ids'].to(parameters['device'], dtype=torch.long)
+                text_mask = data['text_mask'].to(parameters['device'], dtype=torch.long)
 
                 # Run the forward prop
-                predictions = model(ids, mask)
+                predictions = model(title_ids, title_mask, text_ids, text_mask)
 
                 # Iterate through each SSOC level
                 for ssoc_level, preds in predictions.items():
