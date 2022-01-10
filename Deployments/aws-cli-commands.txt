@@ -1,0 +1,3 @@
+tar acvf ../dummy-api.zip *
+aws lambda create-function --function-name dummy-api --runtime python3.8 --zip-file fileb://Deployments/lambda/dummy-api.zip --handler lambda_function.lambda_handler --role arn:aws:iam::594409465357:role/service-role/ben-data-cleaning-010522-role-36cy7wh9
+aws lambda update-function-code --function-name dummy-api --zip-file fileb://Deployments/lambda/dummy-api.zip
