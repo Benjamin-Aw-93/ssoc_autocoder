@@ -20,8 +20,13 @@ def lambda_handler(event, context):
     """
     logger.info('Event: %s', event)
 
+    # Reading in the dummy data
     with open('dummy_data.json') as json_file:
         dummy_data = json.load(json_file)
+
+    # Reading in the SSOC titles mapping
+    with open('ssoc_titles.json') as json_file:
+        ssoc_titles = json.load(json_file)
 
     # Select one of the dummy data randomly
     data = dummy_data[random.randint(0,9)]
@@ -44,16 +49,22 @@ def lambda_handler(event, context):
         }
         return response
 
-    # If not, we extract the job description
+    # If not, we extract the job title and description
+    mcf_job_title = json.loads(resp.data)['title']
     mcf_job_desc = json.loads(resp.data)['description']
     
+    next_9_preds = [(ssoc_pred, ssoc_titles[str(ssoc_pred)]) for ssoc_pred in data['SSOC_5D_Top_10_Preds'][1:10]]
+
     # Compile the output into a dictionary
     output = {
-        'job_id': mcf_job_ad_id,
-        'job_desc': mcf_job_desc,
-        'correct_ssoc': data['Correct_SSOC_2020'],
-        'top_10_preds': data['SSOC_5D_Top_10_Preds'],
-        'top_10_proba': data['SSOC_5D_Top_10_Preds_Proba']
+        'mcf_job_id': mcf_job_ad_id,
+        'mcf_job_title': mcf_job_title,
+        'mcf_job_desc': mcf_job_desc,
+        'correct_ssoc': (data['Correct_SSOC_2020'], ssoc_titles[str(data['Correct_SSOC_2020'])]),
+        'top_ssoc_pred': (data['SSOC_5D_Top_10_Preds'][0], ssoc_titles[str(data['SSOC_5D_Top_10_Preds'][0])]),
+        'correct_ssoc_proba': data['SSOC_5D_Top_10_Preds_Proba'][0],
+        'next_9_preds': next_9_preds,
+        'next_9_proba': data['SSOC_5D_Top_10_Preds_Proba'][1:10]
     }
 
     # Create the response objective
