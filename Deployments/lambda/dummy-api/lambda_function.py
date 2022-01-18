@@ -3,6 +3,7 @@ import logging
 import random
 import hashlib
 import urllib3
+import re
 
 http = urllib3.PoolManager()
 
@@ -31,9 +32,24 @@ def lambda_handler(event, context):
     # Select one of the dummy data randomly
     data = dummy_data[random.randint(0,9)]
 
+    # Extract the hashed MCF job ad ID from the MyCareersFuture URL
+    # Note that we append a "?" to the end of the URL to ensure we capture the ID correctly
+    mcf_url = event['queryStringParameters']['mcf_url']
+    regex_matches = re.search('\\-{1}([a-z0-9]{32})\\?', mcf_url + "?")
+
+    # Try extracting the MCF job ad ID
+    # If not we return an error
+    try:
+        mcf_job_ad_id_hashed = regex_matches.group(1)
+        logger.info('Queried MCF job ad ID (hashed): %s', mcf_job_ad_id_hashed)
+    except:
+        logger.error('Could not identify hashed MCF job ad ID from the URL.')
+        response = {
+            'statusCode': 400,
+            'body': json.dumps({'Error': 'Invalid URL from MyCareersFuture. Please check that you have a valid URL and call this API again.'})
+        }
+
     # Retrieve the MCF job ad ID and overwriting it with one of our samples
-    mcf_job_ad_id = event['queryStringParameters']['job_id']
-    logger.info('Queried MCF job ad ID: %s', mcf_job_ad_id)
     mcf_job_ad_id = data['MCF_Job_Ad_ID']
     logger.info('Replaced with MCF job ad ID: %s', mcf_job_ad_id)
 
