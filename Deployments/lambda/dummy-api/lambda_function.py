@@ -26,11 +26,11 @@ def lambda_handler(event, context):
         dummy_data = json.load(json_file)
 
     # Reading in the SSOC titles mapping
-    with open('ssoc_titles.json') as json_file:
-        ssoc_titles = json.load(json_file)
+    with open('ssoc_desc.json') as json_file:
+        ssoc_desc = json.load(json_file)
 
     # Select one of the dummy data randomly
-    data = dummy_data[random.randint(0,9)]
+    data = dummy_data[random.randint(0,49)]
 
     # Extract the hashed MCF job ad ID from the MyCareersFuture URL
     # Note that we append a "?" to the end of the URL to ensure we capture the ID correctly
@@ -48,6 +48,7 @@ def lambda_handler(event, context):
             'statusCode': 400,
             'body': json.dumps({'Error': 'Invalid URL from MyCareersFuture. Please check that you have a valid URL and call this API again.'})
         }
+        return response
 
     # Retrieve the MCF job ad ID and overwriting it with one of our samples
     mcf_job_ad_id = data['MCF_Job_Ad_ID']
@@ -69,18 +70,17 @@ def lambda_handler(event, context):
     mcf_job_title = json.loads(resp.data)['title']
     mcf_job_desc = json.loads(resp.data)['description']
     
-    next_9_preds = [(ssoc_pred, ssoc_titles[str(ssoc_pred)]) for ssoc_pred in data['SSOC_5D_Top_10_Preds'][1:10]]
+    # Appending the SSOC title and description to the output
+    for prediction in data['predictions']:
+        prediction['SSOC_Title'] = ssoc_desc[prediction['SSOC_Code']]['title']
+        prediction['SSOC_Description'] = ssoc_desc[prediction['SSOC_Code']]['description']
 
     # Compile the output into a dictionary
     output = {
         'mcf_job_id': mcf_job_ad_id,
         'mcf_job_title': mcf_job_title,
         'mcf_job_desc': mcf_job_desc,
-        'correct_ssoc': (data['Correct_SSOC_2020'], ssoc_titles[str(data['Correct_SSOC_2020'])]),
-        'top_ssoc_pred': (data['SSOC_5D_Top_10_Preds'][0], ssoc_titles[str(data['SSOC_5D_Top_10_Preds'][0])]),
-        'correct_ssoc_proba': data['SSOC_5D_Top_10_Preds_Proba'][0],
-        'next_9_preds': next_9_preds,
-        'next_9_proba': data['SSOC_5D_Top_10_Preds_Proba'][1:10]
+        'predictions': data['predictions']
     }
 
     # Create the response objective
