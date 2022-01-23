@@ -6,7 +6,6 @@ import urllib3
 import re
 
 http = urllib3.PoolManager()
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -80,7 +79,8 @@ def lambda_handler(event, context):
         'mcf_job_id': mcf_job_ad_id,
         'mcf_job_title': mcf_job_title,
         'mcf_job_desc': mcf_job_desc,
-        'predictions': data['predictions']
+        'top_prediction': data['predictions'][0],
+        'other_predictions': data['predictions'][1:10]
     }
 
     # Create the response objective
