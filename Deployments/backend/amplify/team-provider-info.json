@@ -1,0 +1,22 @@
+{
+  "prod": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-autocoderbackend-prod-132656-authRole",
+      "UnauthRoleArn": "arn:aws:iam::594409465357:role/amplify-autocoderbackend-prod-132656-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::594409465357:role/amplify-autocoderbackend-prod-132656-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-autocoderbackend-prod-132656-deployment",
+      "UnauthRoleName": "amplify-autocoderbackend-prod-132656-unauthRole",
+      "StackName": "amplify-autocoderbackend-prod-132656",
+      "StackId": "arn:aws:cloudformation:us-east-1:594409465357:stack/amplify-autocoderbackend-prod-132656/16476700-7c0d-11ec-8e7b-1226a67433b9",
+      "AmplifyAppId": "d2qmyd0slh8j2d",
+      "NetworkStackS3Url": "https://s3.amazonaws.com/amplify-autocoderbackend-prod-132656-deployment/amplify-cfn-templates/networkingStackTemplate.json"
+    },
+    "categories": {
+      "auth": {
+        "undefined": {},
+        "true": {}
+      }
+    }
+  }
+}
