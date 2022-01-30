@@ -1,19 +1,25 @@
-FROM public.ecr.aws/lambda/python:3.9
+FROM python:3.9
 
-# Copy function code
-COPY app.py ${LAMBDA_TASK_ROOT}
-COPY model_prediction.py ${LAMBDA_TASK_ROOT}
-COPY ssoc_autocoder ${LAMBDA_TASK_ROOT}/ssoc_autocoder
-COPY artifacts ${LAMBDA_TASK_ROOT}/artifacts
+EXPOSE 80
 
-# Install the function's dependencies using file requirements.txt
-# from your project folder.
+COPY ./app /app
 
-COPY requirements.txt  .
-RUN  pip3 install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
+# FROM public.ecr.aws/lambda/python:3.9
 
-# Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
-CMD [ "app.handler" ] 
+# # Copy function code
+# COPY app.py ${LAMBDA_TASK_ROOT}
+# COPY model_prediction.py ${LAMBDA_TASK_ROOT}
+# COPY ssoc_autocoder ${LAMBDA_TASK_ROOT}/ssoc_autocoder
+# COPY artifacts ${LAMBDA_TASK_ROOT}/artifacts
+
+# # Install the function's dependencies using file requirements.txt
+# # from your project folder.
+
+# COPY requirements.txt  .
+# RUN  pip3 install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
+
+# # Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
+# CMD [ "app.handler" ] 
 
 # # Define global args
 # ARG FUNCTION_DIR="/home/app/"

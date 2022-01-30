@@ -1,3 +1,11 @@
 tar acvf ../dummy-api.zip *
 aws lambda create-function --function-name dummy-api --runtime python3.8 --zip-file fileb://Deployments/lambda/dummy-api.zip --handler lambda_function.lambda_handler --role arn:aws:iam::594409465357:role/service-role/ben-data-cleaning-010522-role-36cy7wh9
 aws lambda update-function-code --function-name dummy-api --zip-file fileb://Deployments/lambda/dummy-api.zip
+
+docker build -t model-predict .   
+
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 594409465357.dkr.ecr.us-east-1.amazonaws.com/model-predict
+aws ecr create-repository --repository-name model-predict --image-scanning-configuration scanOnPush=false --image-tag-mutability MUTABLE
+docker tag model-predict:latest 594409465357.dkr.ecr.us-east-1.amazonaws.com/model-predict:latest
+docker push 594409465357.dkr.ecr.us-east-1.amazonaws.com/model-predict:latest        
+

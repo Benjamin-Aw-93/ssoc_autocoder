@@ -9,7 +9,6 @@
 import json
 import torch
 from transformers import DistilBertTokenizer
-from ssoc_autocoder import model_training
 import pickle
 
 # Setting the default SSOC prediction parameters here
@@ -21,7 +20,7 @@ ssoc_prediction_parameters = {
     'SSOC_5D': {'top_n': 10, 'min_prob': 0.1}
 }
 
-def model_predict(model_filepath, 
+def model_predict(model, 
                   tokenizer_filepath, 
                   ssoc_idx_encoding_filepath, 
                   title,
