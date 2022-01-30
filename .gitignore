@@ -2,6 +2,8 @@
 /Data
 /Models
 /venv
+/Notebooks/Exported Files
+/Notebooks/Pickle Files
 
 # Logging folders to ignore
 /*/.ipynb_checkpoints
