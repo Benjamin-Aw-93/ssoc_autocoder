@@ -16,6 +16,7 @@
 /runs/
 /Scripts/
 /share/
+/build/
 
 # Files to ignore
 *.pickle
