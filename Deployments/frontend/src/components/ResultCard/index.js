@@ -1,63 +1,82 @@
+/* Importing packages */
 import React from 'react'
-import Card from '@material-ui/core/Card';
-import CardContent from '@material-ui/core/CardContent';
-import Typography from '@material-ui/core/Typography';
-import CardActions from '@material-ui/core/CardActions';
-import Button from '@material-ui/core/Button';
-import { Divider } from '@material-ui/core';
-import CardHeader from '@material-ui/core/CardHeader';
+import { Card } from '@mui/material';
+import { CardContent }from '@mui/material';
+import { Typography } from '@mui/material';
+import { Divider } from '@mui/material';
+import { CardHeader } from '@mui/material';
+import { Box } from '@mui/material';
+import { makeStyles } from '@material-ui/core';
 
-import Box from '@mui/material/Box';
-
-const ResultCard = ({useStyles, mainResult, originalText}) => {
+/* ResultCard component captures result for the top prediciton */
+const ResultCard = ({mainResult}) => {
+    
+    /* Styling content */
+    const useStyles = makeStyles(theme => ({
+    root: {
+        borderRadius: 12,
+        minWidth: 256,
+        textAlign: 'center',
+        backgroundColor: '#eceff1',
+    },
+    header: {
+        textAlign: 'center',
+        spacing: 10,
+    },
+    list: {
+        padding: '20px',
+    },
+    action: {
+        display: 'flex',
+        justifyContent: 'space-around',
+    },
+    }));
+    
 
     const classes = useStyles();
 
+    /* Determining what colour to highligh the text with, breakpoints at each increment of 33.33%  */
+    const colorCode = value => {
+
+        const parsedValue = parseFloat(value)
+
+        if (parsedValue < 33.33) {
+            return '#ec1a1a'
+        } else
+
+        if (parsedValue < 66.66) {
+            return '#ffb003'
+        } 
+
+        return '#01bf71'
+
+    }
+    
     return (
-        originalText ? (
-            <Card className={classes.root}>
-            <CardHeader title="Orginal Text" className={classes.header} />
+       
+            <Card elevation={5} className={classes.root}>
+            <CardHeader title = {<strong>Top Prediction</strong>} className={classes.header} />
             <Divider variant="middle" />
             <CardContent>
-            <Typography noWrap variant="h4" align="center">
-                {mainResult.correct_ssoc ? (mainResult.mcf_job_title) : 'xxx'}
+            <Typography noWrap variant="h5" gutterBottom align="left">
+                <strong>SSOC Title:</strong> {mainResult.top_prediction ? (mainResult.top_prediction.SSOC_Title) : 'xxx'}
             </Typography>
-            <Box component="div" sx={{ maxHeight: '165px', overflow: 'auto'}}>
-            <Typography align="center">{mainResult.correct_ssoc ? mainResult.mcf_job_desc : 'xxx'} </Typography>
+            <Typography noWrap variant="h5" gutterBottom align="left">
+                <strong>SSOC Code:</strong> {mainResult.top_prediction ? (mainResult.top_prediction.SSOC_Code) : 'xxx'}
+            </Typography>
+            <Typography noWrap variant="h5" gutterBottom align="left" color = {colorCode(mainResult.top_prediction.Prediction_Confidence)}>
+                <strong>Confidence:</strong> {mainResult.top_prediction ? (mainResult.top_prediction.Prediction_Confidence) : 'xxx'}
+            </Typography>   
+            <Divider variant="middle"  sx={{ my: 2 }}/>
+            <Typography noWrap variant="h5" gutterBottom align="center">
+                <strong>SSOC Description:</strong> 
+            </Typography>
+            <Box component="div" sx={{ maxHeight: '850px', overflow: 'auto', m: '1rem' }}>
+            <Typography align="left">{mainResult.top_prediction ? (mainResult.top_prediction.SSOC_Description) : 'xxx'}</Typography>
             </Box>
             </CardContent>
-            <Divider variant="middle" />
-            <CardActions className={classes.action}>
-            <Button variant="contained" color="primary" className={classes.button}>
-                Visit MCF Job Portal here
-            </Button>
-            </CardActions>
             </Card>
-
-        ) : (
-            <Card className={classes.root}>
-            <CardHeader title="Result" className={classes.header} />
-            <Divider variant="middle" />
-            <CardContent>
-            <Typography variant="h4" align="center">
-                SSOC {mainResult.correct_ssoc ? (mainResult.correct_ssoc[0]) : 'xxx'}
-            </Typography>
-            <div className={classes.list}>
-            <Typography align="center">We predict that the most probable 5D SSOC is </Typography>
-            <Typography align="center"><strong>{mainResult.correct_ssoc ? mainResult.correct_ssoc[0] : 'xxx'}</strong></Typography>
-            <Typography align="center">with the corresponding job title as </Typography>
-            <Typography align="center"><strong>{mainResult.correct_ssoc ? mainResult.correct_ssoc[1] : 'xxx'}</strong></Typography>
-            <Typography align="center">with <strong>{mainResult.correct_ssoc_proba}</strong> confidence</Typography>
-            </div>
-            </CardContent>
-            <Divider variant="middle" />
-            <CardActions className={classes.action}>
-            <Button variant="contained" color="primary" className={classes.button}>
-                Visit MCF Job Portal here
-            </Button>
-            </CardActions>
-            </Card>
-        )
+        
     )
 }
 

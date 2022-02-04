@@ -19,3 +19,4 @@
 
 # Files to ignore
 *.pickle
+node_modules

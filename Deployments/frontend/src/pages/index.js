@@ -1,85 +1,113 @@
-import React, {useState, useEffect} from 'react'
-import HeroSection from '../components/HeroSection';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
+/* Importing packages */
+import React, {useState, useEffect, useRef} from 'react'
 import SearchSection from '../components/SearchSection';
 import getSSOCData from '../components/API/lambdaAPI';
 import ResultsSection from '../components/ResultsSection';
-import { makeStyles } from '@material-ui/core';
+import LoadingSection from '../components/LoadingSection';
+import { AlertTitle } from '@mui/material';
+import { Alert } from '@mui/material';
+import { Snackbar } from '@mui/material';
 
+/* This page acts as the home page for all the three components, the search, the loading screen and the results page*/
+/* Almost all of the components logic and states are controlled through here*/
 const Home = () => {
 
-    const useStyles = makeStyles(theme => ({
-        root: {
-          borderRadius: 12,
-          minWidth: 256,
-          textAlign: 'center',
-        },
-        header: {
-          textAlign: 'center',
-          spacing: 10,
-        },
-        list: {
-          padding: '20px',
-        },
-        button: {
-          margin: theme.spacing(1),
-        },
-        action: {
-          display: 'flex',
-          justifyContent: 'space-around',
-        },
-        accordianHeading: {
-          fontSize: theme.typography.pxToRem(15),
-          flexBasis: '33.33%',
-          flexShrink: 0, 
-          textAlign: 'center',
-          flexGrow: 0,
-        },
-        accordianSecondaryHeading: {
-          fontSize: theme.typography.pxToRem(15),
-          color: theme.palette.text.secondary,
-          textAlign: 'center',
-        },
-      }));
+  /*useRef hook to locate where the compoenet is, for scrolling purposes, does not tigger component update when value is updated*/
+  const loadingScreenRef = useRef(null);
+  const searchBarRef = useRef(null);
 
-    const [isOpen, setIsOpen] = useState(false);
-    const [mcfID, setMcfId] = useState("");
-    const [isPress, setisPress] = useState(false);
-    const [mainResult, setmainResult] = useState({});
-
-    const toggle = () => {
-        setIsOpen(!isOpen)
+    function isEmpty(obj) {
+      return Object.keys(obj).length === 0;
     }
-
-    const togglePress = () => {
-        setisPress(!isPress)
+    /* Controlling scroll functionality */
+    const executeScroll = () => loadingScreenRef.current.scrollIntoView({  behavior: 'smooth' })
+    const executeSearchScroll = () => {
+      searchBarRef.current.focus();
+      setMcfUrl('')
+      setmainResult({});
     }
+    /* All states required */
+    const [mcfUrl, setMcfUrl] = useState(""); /* User Input*/
+    const [mainResult, setmainResult] = useState({}); /* Result */
+    const [isLoading, setisLoading] = useState(false); /* When the app is loading show this page */
+    const [isError, setisError] = useState(false); /* If an error is returned by the API call */
+    const [errorMessage, seterrorMessage] = useState({}); /* What the error message returned by the API call is */
 
-    console.log(mainResult)
-
+    
     useEffect(() => {
-        getSSOCData(`${mcfID}`)
-          .then(data => {
-            setmainResult({
-                ...mainResult,
-                ...data.data
-            })
-          });
-        
-        return () => {
-            console.log("Component unmounted")
-        };
-      }, [isPress]);
+      executeScroll();
+    }, [isLoading]);
 
+    /* When search button is pressed, what happens accordingly */
+    const togglePress = () => {
+        setmainResult({});
+        setisLoading(true);
+    
+        getSSOCData(`${mcfUrl}`)
+        .then(data => {
+          setmainResult({
+              ...mainResult,
+              ...data.data
+          });
+        })
+        .catch(e => {
+          seterrorMessage({
+            ...errorMessage,
+            ...e.response
+          });
+          setisError(true);
+        })
+        .then(() => {
+          setisLoading(false);
+        })
+    }
+
+    /* When reset button is pressed, what happens accordingly */
+    const toggleDefault = () => {
+      setmainResult({});
+      setisLoading(true);
+  
+      getSSOCData(`feelinglucky`)
+      .then(data => {
+        setmainResult({
+            ...mainResult,
+            ...data.data
+        });
+      })
+      .catch(e => {
+        seterrorMessage({
+          ...errorMessage,
+          ...e.response
+        });
+        setisError(true);
+      })
+      .then(() => {
+        setisLoading(false);
+      })
+  }
+    /*Closing error button*/
+    const handleSnackClose = (event, reason) => {
+      if (reason === 'clickaway') {
+        return;
+      }
+  
+      setisError(false);
+    };
 
     return (
         <>
-            <Sidebar isOpen = {isOpen} toggle = {toggle}/>
-            <Navbar toggle = {toggle}/>
-            <HeroSection/>
-            <SearchSection setMcfId = {setMcfId} mcfID = {mcfID} togglePress = {togglePress}/>
-            <ResultsSection useStyles = {useStyles} mainResult = {mainResult} ></ResultsSection>
+            <SearchSection searchBarRef = {searchBarRef} setMcfUrl = {setMcfUrl} mcfUrl = {mcfUrl} togglePress = {togglePress} toggleDefault = {toggleDefault}/>
+            <div ref={loadingScreenRef}>
+              {isLoading ? <LoadingSection></LoadingSection> : null}
+            </div>
+            {isEmpty(mainResult) ? null : (<ResultsSection executeSearchScroll = {executeSearchScroll} mainResult = {mainResult} ></ResultsSection>) }
+            {isEmpty(errorMessage)? null: (
+            <Snackbar open={isError} autoHideDuration={6000} onClose={handleSnackClose}>
+              <Alert onClose={handleSnackClose} severity="error" sx={{ width: '100%' }}>
+                <AlertTitle><strong>Error {errorMessage.status}!</strong></AlertTitle>
+                {errorMessage.data.detail}
+              </Alert>
+            </Snackbar>)}
         </>
     )
 }

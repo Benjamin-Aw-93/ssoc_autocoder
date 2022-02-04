@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "SSOC AutoCoder",
+  "name": "Predicting SSOC values from MCF job description",
   "icons": [
     {
       "src": "favicon.ico",
