@@ -1,0 +1,18 @@
+{
+  "projectName": "autocoderbackend",
+  "version": "3.1",
+  "frontend": "javascript",
+  "javascript": {
+    "framework": "none",
+    "config": {
+      "SourceDir": "src",
+      "DistributionDir": "dist",
+      "BuildCommand": "",
+      "StartCommand": "npm.cmd run-script start",
+      "ServerlessContainers": true
+    }
+  },
+  "providers": [
+    "awscloudformation"
+  ]
+}
