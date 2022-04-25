@@ -1,22 +1,32 @@
-# SSOC Auto-Coder
+# SSOC Autocoder
+
+> **Quick links below:**  
+> See [Clickup](https://app.clickup.com/3825139/v/l/s/43633588) for sprint  
+> See [Google Drive](https://drive.google.com/drive/u/1/folders/1a4zV5ILczikQnraScjXRwi2XCNEQtfwA) for documentation and architecture  
+> See [AWS](https://project-finch.signin.aws.amazon.com/console) for datasets and deployment (account alias is `project-finch`)
 
 ## General Info
 
 * Project started on 1 Aug 2021
-* Team consists of Shaun Khoo and Benjamin Aw
-* End-users are FWPD (Jasmine Koh and Grace Kong)
-* Current aim is to produce POC by end-Jan 2022
+* Team: Shaun Khoo, Benjamin Aw
 
 ## Timeline
 
+Phase 2: Deployment (ongoing)
+* Apr 2022: Discussion and preparation
+* May 2022: ?
+* Jun 2022: ?
+* Jul 2022: ?
+* Aug 2022: Anniversary review
+
+<s>Phase 1: Development (completed)
 * Aug 2021: Data processing
 * Sep 2021: Data processing
 * Oct 2021: Initial modelling + training on AWS
 * Nov 2021: Data augmentation and manual tagging
 * Dec 2021: Language modelling + model training
-* Jan 2022: Deployment POC
-
-> See [Clickup](https://app.clickup.com/3825139/v/b/s/43633588) for detailed tasks and deadlines
+* Jan 2022: Deployment of POC
+* Mar 2022: Presentation to Data Steering Committee</s>
 
 ## Style Guide
 
