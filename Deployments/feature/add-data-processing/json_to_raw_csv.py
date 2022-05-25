@@ -128,11 +128,19 @@ def lambda_handler(event, context):
 
    #iteratring through the files in tmp
    for filename in os.listdir("/tmp/"):
+
       #only selecting files beeginning with raw
       if filename.startswith('raw'):
-         
+        
+        try:
+
          #upload from tmp to s3
          s3.meta.client.upload_file(f'/tmp/{filename}', bucket, f'raw_csv/{filename}')
+
+        except Exception as e:
+            
+            print(e)
+
    
    # to test if it has ran successfully 
    return {
