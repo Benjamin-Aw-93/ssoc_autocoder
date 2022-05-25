@@ -5,16 +5,8 @@ import requests
 import boto3
 import os
 
-# for trigger
-#s3 = boto3.client('s3')
+
 def lambda_handler(event, context):
-    
-
-   # Get the object from the event and show its content type (used for trigger)
-   #bucket = event['Records'][0]['s3']['bucket']['name']
-
-   #used for trigger
-   #key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
 
    bucket ='mcf-job-id'
 
@@ -22,9 +14,7 @@ def lambda_handler(event, context):
    key='MCF_Training_Set_Full.csv'
     
    try:
-       #used for trigger 
-        #response = s3.get_object(Bucket=bucket, Key=key)
-        
+       
         s3 = boto3.resource('s3')
 
         #downlad file from s3 bucket to tmp
@@ -60,8 +50,6 @@ def lambda_handler(event, context):
       
    for i, ad_id, uuid in zip(list(range(1, len(df)+1)), df['MCF_Job_Ad_ID'], df['uuid']):
          
-      
-      
       req = requests.get(base_url + "/" + uuid)
       
       if req.status_code != 200:
@@ -82,14 +70,10 @@ def lambda_handler(event, context):
          try:                    
                with open(f'/tmp/{ad_id}.json', 'w') as file:
                   json.dump(req.json(), file)
-                  
-                  
-                  
+               
                #uploading from tmp to s3 bucket into the json folder  
                s3.meta.client.upload_file(f'/tmp/{ad_id}.json', bucket, f'json/{ad_id}.json')
-
-               #print(f'{i}/{total_count} completed - called {ad_id} successfully! Error count: {len(errors)}, Rate limit count: {rate_limit_count}\r', end = '')
-               
+      
          except Exception as e:
                print(e)
 
