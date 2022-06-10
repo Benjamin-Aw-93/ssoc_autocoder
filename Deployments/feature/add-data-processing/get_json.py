@@ -5,6 +5,7 @@ import requests
 import boto3
 import os
 from datetime import date, datetime, timedelta
+import time
 
 def get_object(file_name,yesterday):
     """
@@ -25,7 +26,31 @@ def get_object(file_name,yesterday):
     except:
         False
         
-def task(x):
+def read_bucket(buck,path,x):
+    
+    s3 = boto3.resource('s3')
+    try:
+       
+        
+
+        #downlad file from s3 bucket to tmp
+        s3.meta.client.download_file(buck, x, path+f'{x}')
+        
+        local_file_name = f'{path}{x}'
+        
+        df=pd.read_csv(f'{local_file_name}')
+        
+        return df
+        
+    except Exception as e:
+        print(e)
+        print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(x, buck))
+        raise e
+        
+
+    
+        
+def task(df,dir_bucket,path):
     """
     Main driver function 
 
@@ -35,21 +60,10 @@ def task(x):
         Does not resturn anything processes the api
         to json objects and store them in the s3 bucket
     """
-    try:
-       
-        s3 = boto3.resource('s3')
-
-        #downlad file from s3 bucket to tmp
-        s3.meta.client.download_file('mcf-job-id', x, f'/tmp/x')
-        
-        local_file_name = f'/tmp/{x}'
-        
-        df=pd.read_csv(f'{local_file_name}')
-        
-    except Exception as e:
-        print(e)
-        print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(key, bucket))
-        raise e
+    
+    s3 = boto3.resource('s3')
+    
+    
 
     #getting the Job_ID nd uuid columns
     df = df[['MCF_Job_Ad_ID', 'uuid']]
@@ -90,12 +104,12 @@ def task(x):
                  
         if req.status_code == 200:
             try:                    
-                with open(f'/tmp/{ad_id}.json', 'w') as file:
+                with open(f'{path}{ad_id}.json', 'w') as file:
                     json.dump(req.json(), file)
                
                #uploading from tmp to s3 bucket into the json folder  
-                dir_bucket = 'raw-json-mcf'
-                s3.meta.client.upload_file(f'/tmp/{ad_id}.json', dir_bucket, f'{ad_id}.json')
+                
+                s3.meta.client.upload_file(f'{path}{ad_id}.json', dir_bucket, f'{ad_id}.json')
       
             except Exception as e:
                 print(e)
@@ -105,18 +119,18 @@ def task(x):
     
 def lambda_handler(event, context):
     
-    bucket ='mcf-job-id'
+    bucket ='mcf-job-id-csv'
     key='MCF_Training_Set_Full.csv'
     
     s3 = boto3.resource('s3')
     
     #input number of days to check since when has it been modified
-    time = 1
+    time = 15
     
     #benchmark of date to check since when it has last been modified
     yesterday = datetime.fromisoformat(str(date.today() - timedelta(days=time)))
     
-    bucket = 'mcf-job-id'
+    
     buck=s3.Bucket(bucket)
     
     
@@ -126,7 +140,8 @@ def lambda_handler(event, context):
         s3_file = get_object(s3_object,yesterday)
         print(s3_file)
         if s3_file:
-            task(s3_object.key)
+            df = read_bucket(bucket,'/tmp/',s3_object.key)
+            task(df,'mcf-job-id-json')
         else:
             print(f'{s3_object.key} is a old file')
     return 'completed'

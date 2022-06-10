@@ -8,7 +8,8 @@ from datetime import date, datetime, timedelta
 import requests
 import boto3
 
-def write_to_csv(output):
+
+def write_to_csv(path,output):
     """
     write the pandas to csv and groups them according to week and year 
 
@@ -20,7 +21,7 @@ def write_to_csv(output):
         
     """
     for dates in output.keys():
-        pd.DataFrame(output[dates]).to_csv("/tmp/raw_" + dates + ".csv", index = False)
+        pd.DataFrame(output[dates]).to_csv(path+"/raw_" + dates + ".csv", index = False)
     
 def cleaning_text_and_check(text):
     
@@ -85,24 +86,11 @@ def get_object(file_name, yesterday):
         obj = file_name.get(IfModifiedSince=yesterday)
         return obj['Body']
     except:
-        False
+        return False
 
-def lambda_handler(event, context):
-
-    path = '/tmp/'
+        
+def read_buck(buck,yesterday,path):
     
-    ##input number of days to check since when has it been modified
-    time = 1
-    
-    #benchmark of date to check since when it has last been modified
-    yesterday = datetime.fromisoformat(str(date.today() - timedelta(days=time)))
-    
-    s3 = boto3.resource('s3')
-    bucket ='raw-json-mcf'
-    buck=s3.Bucket(bucket)
-    
-    
-            
     for s3_object in buck.objects.all():
         
         filename=s3_object.key
@@ -110,35 +98,60 @@ def lambda_handler(event, context):
         if get_object(s3_object,yesterday):
         
             try:
-                buck.download_file(filename, f'/tmp/'+filename)
+                buck.download_file(filename, path+filename)
             except Exception as e:
                 print(e)
-                print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(key, bucket))
+                print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(s3_object.key, buck))
                 raise e
         else:
             
             print(f'{filename} is too old')
+            
+    
+            
+def write_buck(directed_buck,path):
+    s3 = boto3.resource('s3')
+    try:
+        
+        #iteratring through the files in tmp
+        for filename in os.listdir(path):
+            print(filename)
+            #only selecting files beginning with processed
+            if filename.startswith('processed'):
+                
+                s3.meta.client.upload_file(path+f'{filename}', directed_buck, f'{filename}')
       
+    except Exception as e:
+        print(e)
+    
+
+    
+
+
+def lambda_handler(event, context):
+
+    path = '/tmp/'
+    
+    ##input number of days to check since when has it been modified
+    time = 14
+    
+    #benchmark of date to check since when it has last been modified
+    yesterday = datetime.fromisoformat(str(date.today() - timedelta(days=time)))
+    
+    s3 = boto3.resource('s3')
+    bucket ='mcf-job-id-json'
+    buck=s3.Bucket(bucket)
+    
+    read_buck(buck,yesterday,path)
 
     
     output = extract_and_split(path)
     write_to_csv(output)
     output_individual_files(path)
 
-    directed_buck = 'weekly-csv-mcf'
+    directed_buck = 'mcf-weekly-processed-csv'
 
-    try:
-        
-        #iteratring through the files in tmp
-        for filename in os.listdir("/tmp/"):
-            #only selecting files beeginning with raw
-            if filename.startswith('processed'):
-                
-                s3.meta.client.upload_file(f'/tmp/{filename}', directed_buck, f'{filename}')
-      
-    except Exception as e:
-        print(e)
-    
+    write_buck(directed_buck,path)
 
     return {
         'statusCode': 200,
