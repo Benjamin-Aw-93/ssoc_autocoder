@@ -188,9 +188,10 @@ def masking_train(downsampled_dataset,function):
     Returns:
         The whole of trained dataset tokenized
     """
+    tf_train_dataset = 0 
     # When used normal masking 
 
-    if function ==1:
+    if function ==data_collator:
 
         tf_train_dataset = downsampled_dataset["train"].to_tf_dataset(
         columns=["input_ids", "attention_mask", "labels"],
@@ -201,13 +202,17 @@ def masking_train(downsampled_dataset,function):
 
     # When used whole word masking 
 
-    elif function ==2:
+    elif function ==whole_word_masking_data_collator:
         tf_train_dataset = downsampled_dataset["train"].to_tf_dataset(
         columns=["input_ids", "attention_mask", "labels",'word_ids'],
         collate_fn=function,
         shuffle=True,
         batch_size=32,
     )
+
+    if tf_train_dataset==0:
+        print("Error tf_train_dataset is not initialised")
+        return
 
     print("Completed masking of train_dataset")
 
@@ -226,10 +231,11 @@ def masking_eval(downsampled_dataset,function):
     Returns:
         The whole of eval dataset tokenized
     """
+    tf_eval_dataset = 0
 
     # When used normal masking 
 
-    if function ==1:
+    if function ==data_collator:
 
         tf_eval_dataset = downsampled_dataset["test"].to_tf_dataset(
         columns=["input_ids", "attention_mask", "labels"],
@@ -240,13 +246,18 @@ def masking_eval(downsampled_dataset,function):
 
     # When used whole word masking 
 
-    elif function ==2:
+    elif function ==whole_word_masking_data_collator:
         tf_eval_dataset = downsampled_dataset["train"].to_tf_dataset(
         columns=["input_ids", "attention_mask", "labels",'word_ids'],
         collate_fn=function,
         shuffle=True,
         batch_size=32,
     )
+
+    if tf_eval_dataset==0:
+        print("Error tf_eval_dataset is not initialised")
+        return
+    
 
     print("Completed masking of eval_dataset")
 
