@@ -314,7 +314,7 @@ def trainer(tf_train_dataset,model,lr = 2e-5,warmup = 1_000,wdr = 0.01):
     )
 
     # You need to comple a model to train 
-    
+
     model.compile(optimizer=optimizer)
 
     print('\nComplied the optimizer with the model\n')
@@ -368,7 +368,7 @@ def main(model,tokenizer,path,whole_word_masking_probability,train_size,fraction
 
     print(f'\nGrouped the tokenized dataset into chunks of {chunk_size}\n')
 
-    # Choosing between normal masking(1) and whole word masking (2)
+    # Choosing between normal masking and whole word masking 
 
     if type_of_masking == 'normal masking':
         fn = data_collator
