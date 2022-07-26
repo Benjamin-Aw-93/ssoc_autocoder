@@ -1,3 +1,4 @@
+import functools
 from transformers import FNetForPreTraining, TFAutoModelForMaskedLM, default_data_collator
 from datasets import load_dataset
 from transformers import AutoTokenizer
@@ -16,57 +17,9 @@ from tensorflow import keras
 
 
 
-# selecting the base model
 
-model_checkpoint = "distilroberta-base"
 
-# selecting the base masked language model based on the base model
-
-model = TFAutoModelForMaskedLM.from_pretrained(model_checkpoint)
-
-# selecting the tokenizer based on the base model
-
-tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-
-# chunk size of the sequence of each group after grouping 
-
-chunk_size = 128
-
-# probablity for normal masking (should take note when using normal word masking)
-
-prob = 0.15
-
-# data collator for masking this masks the token 
-
-data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=prob)
-
-MASK_TOKEN = tokenizer.mask_token
-
-# choose between normal masking and whole word masking 
-
-type_of_masking = 'normal masking'
-
-# path where the text data set is
-
-path = 'C:/Users/Hari Shiman/Desktop/Data/text/trial.txt'
-
-batch_size = 32
-
-# number of rows of the eval data set based on the fraction of size of training dataset
-
-frac = 0.1
-
-# number of rows of the training data set
-
-train_size = 1000
-
-whole_word_masking_probability = 0.2
-
-sample_text = f"top up {MASK_TOKEN}"
-
-name_of_model = 'ml_model_trial'
-
-def tokenize_function(dataset):
+def tokenize_function(dataset,tokenizer):
 
     """
     Tokenize the sentences
@@ -83,6 +36,9 @@ def tokenize_function(dataset):
     # It is to grab word IDs in the case we are doing whole word masking
 
     if tokenizer.is_fast:
+
+        #getting the word_ids of the tokens
+
         result["word_ids"] = [result.word_ids(i) for i in range(len(result["input_ids"]))]
         
     return result
@@ -90,7 +46,7 @@ def tokenize_function(dataset):
 
 
 
-def group_texts(tokenized_dataset):
+def group_texts(tokenized_dataset,chunk_size):
 
     """
     Grouping all the text data and splitting into groups based on chunk size
@@ -119,7 +75,7 @@ def group_texts(tokenized_dataset):
     return result
 
 
-def whole_word_masking_data_collator(features):
+def whole_word_masking_data_collator(features,whole_word_masking_probability):
 
     """
     To mask out the occurence of the word in the whole corpus
@@ -204,7 +160,7 @@ def split_dataset(train_size,fraction,grouped_tokenized_datasets,seed=1):
 
     return downsampled_dataset
 
-def masking(downsampled_dataset,function,batch_size,split):
+def masking(downsampled_dataset,function,batch_size,split,type_of_masking):
 
     """
     Masking the train_data set according to the masking technique you want 
@@ -221,7 +177,7 @@ def masking(downsampled_dataset,function,batch_size,split):
     tf_dataset = 0 
     # When used normal masking 
 
-    if function ==data_collator:
+    if type_of_masking == 'normal masking':
 
         tf_dataset = downsampled_dataset[split].to_tf_dataset(
         columns=["input_ids", "attention_mask", "labels"],
@@ -232,7 +188,7 @@ def masking(downsampled_dataset,function,batch_size,split):
 
     # When used whole word masking 
 
-    elif function ==whole_word_masking_data_collator:
+    elif type_of_masking == 'whole word masking':
         tf_dataset = downsampled_dataset[split].to_tf_dataset(
         columns=["input_ids", "attention_mask", "labels",'word_ids'],
         collate_fn=function,
@@ -325,7 +281,7 @@ def trainer(tf_train_dataset,model,lr = 2e-5,warmup = 1_000,wdr = 0.01):
     return model
     
 
-def main(model,tokenizer,path,whole_word_masking_probability,train_size,fraction,sample_text,type_of_masking,model_name,batch_size,seed=1,lr = 2e-5,warmup = 1_000,wdr = 0.01):
+def main(model,tokenizer,path,normal_masking_probability,whole_word_masking_probability,chunk_size,train_size,fraction,sample_text,type_of_masking,model_name,batch_size,seed=1,lr = 2e-5,warmup = 1_000,wdr = 0.01):
     """
     Running the whole script
 
@@ -333,7 +289,9 @@ def main(model,tokenizer,path,whole_word_masking_probability,train_size,fraction
         model : base model
         tokenizer : tokenizer based on the checkpoint
         path : filepath of the text data
+        normal_masking_probability : probability for normal masking
         whole_word_masking_probability : probability for the whole word masking
+        chunk_size : chunk size for number of tokens in each group when the dataset is grouped
         train_size : number of rows for train_set you desire
         fraction : ratio against number of rows against train_size you want for eval_dataset
         sample_text : sample text for prediction of the trained model
@@ -353,28 +311,30 @@ def main(model,tokenizer,path,whole_word_masking_probability,train_size,fraction
     #load the text file into appropriate formate
 
     dataset = load_dataset('text', data_files=path)
-
+    
     
     # Use batched=True to activate fast multithreading!
     # tokenize the dataset
+    tokenize = functools.partial(tokenize_function, tokenizer=tokenizer)
     tokenized_datasets = dataset.map(
-        tokenize_function, batched=True, remove_columns=["text"] )
+        tokenize,batched=True, remove_columns=["text"] )
 
     print("\nTokenized the dataset\n")
 
     # Combine the sentences and break into groups of the desired chunk size
+    group = functools.partial(group_texts, chunk_size=chunk_size)
+    grouped_tokenized_datasets = tokenized_datasets.map(group, batched=True)
 
-    grouped_tokenized_datasets = tokenized_datasets.map(group_texts, batched=True)
-
-    print(f'\nGrouped the tokenized dataset into chunks of {chunk_size}\n')
+    print(f'\nGrouped the tokenized dataset into chunks of {128}\n')
 
     # Choosing between normal masking and whole word masking 
 
     if type_of_masking == 'normal masking':
+        data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=normal_masking_probability)
         fn = data_collator
 
     elif type_of_masking =='whole word masking':
-        fn = whole_word_masking_data_collator
+        fn = functools.partial(whole_word_masking_data_collator, whole_word_masking_probability=whole_word_masking_probability)
 
     
     # Split the tokenized grouped dataset into train and eval sub datasets
@@ -383,11 +343,11 @@ def main(model,tokenizer,path,whole_word_masking_probability,train_size,fraction
 
     # Random masking of the train set
 
-    tf_train_dataset = masking(downsampled_dataset,fn,batch_size,'train')
+    tf_train_dataset = masking(downsampled_dataset,fn,batch_size,'train',type_of_masking)
 
     #Random maksing of the eval set
 
-    tf_eval_dataset = masking(downsampled_dataset,fn,batch_size,'test')
+    tf_eval_dataset = masking(downsampled_dataset,fn,batch_size,'test',type_of_masking)
 
     #Compling the base model with the optimizer
 
@@ -425,4 +385,43 @@ def main(model,tokenizer,path,whole_word_masking_probability,train_size,fraction
 
 
 
-main(model,tokenizer,path,whole_word_masking_probability,train_size,frac,sample_text,type_of_masking,'trial2',batch_size)
+# selecting the base model
+
+#model_checkpoint = "distilroberta-base"
+
+# selecting the base masked language model based on the base model
+
+#model = TFAutoModelForMaskedLM.from_pretrained(model_checkpoint)
+
+# selecting the tokenizer based on the base model
+
+#tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+
+# chunk size of the sequence of each group after grouping 
+
+#MASK_TOKEN = tokenizer.mask_token
+
+# choose between normal masking and whole word masking 
+
+#type_of_masking = 'normal masking'
+
+# path where the text data set is
+
+#path = 'C:/Users/Hari Shiman/Desktop/Data/text/trial.txt'
+
+#batch_size = 32
+
+# number of rows of the eval data set based on the fraction of size of training dataset
+
+#frac = 0.1
+
+# number of rows of the training data set
+
+#train_size = 1000
+
+#sample_text = f"top up {MASK_TOKEN}"
+
+#name_of_model = 'ml_model_trial'#
+
+
+main(model,tokenizer,path,0.15,0.2,128,train_size,frac,sample_text,type_of_masking,'trial2',batch_size)
