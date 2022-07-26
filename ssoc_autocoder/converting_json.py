@@ -3,14 +3,14 @@ import os
 import json
 import pandas as pd
 from .utils import verboseprint
+import datetime
+
 
 # Load verbosity ideally should load in command line, write as -v tag in cmd
 # Should load load at the start of the script
 verbosity = False  # default value
 
 verboseprinter = verboseprint(verbosity)
-
-path = "../Data/Raw/"
 
 
 def extract_mcf_data(json):
@@ -87,25 +87,49 @@ def extract_and_split(path):
     """
 
     output = {}
+    now = datetime.datetime.now()
 
-    for filename in os.listdir(path + "mcf_raw"):
+    for filename in os.listdir(path):
 
         verboseprinter(f'Reading in {filename}')
-        f = open(path + "/mcf_raw/" + filename)
+        f = open(path+filename)
         entry = json.load(f)
 
         extracted_result, date = extract_mcf_data(entry)
 
         if extracted_result:
-            date_year_mth = date[0:7]
-            if date_year_mth in output:
-                output[date_year_mth].append(extracted_result)
+            
+            #tag the JOB ID
+            extracted_result["MCF_Job_Ad_ID"] = filename[:-5]
+
+            #Tag the date when the json was converted to the csv
+            extracted_result['JSON to CSV date'] = now
+            
+            #get the year of the Job_ID
+            year = date[0:4]
+
+            #get the month of the Job_ID
+            month = date[5:7]
+
+            #get the day of the Job_ID
+            day = date[-2:]
+
+            #get the week of the Job_ID so we can group it in weeks
+            week_num = datetime.date(int(year), int(month), int(day)).isocalendar()[1]
+            
+            #if it is a single digit week add a 0 infront for filename
+            if week_num <10:
+                date_year_week= year+'-'+'0'+str(week_num)
             else:
-                output[date_year_mth] = [extracted_result]
+                date_year_week= year+'-'+str(week_num)
+                
+
+            if date_year_week in output: 
+                output[date_year_week].append(extracted_result)
+            else:
+                output[date_year_week] = [extracted_result]
         else:
             verboseprinter(f'{filename} has missing key values')
-            fi = open(path + "json_to_remove.txt", "a")
-            fi.write(f'{filename}\n')
-            fi.close()
 
     return output
+
