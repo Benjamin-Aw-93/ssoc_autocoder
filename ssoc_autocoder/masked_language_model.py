@@ -1,4 +1,6 @@
 import functools
+import sys
+from torch import frac
 from transformers import FNetForPreTraining, TFAutoModelForMaskedLM, default_data_collator
 from datasets import load_dataset
 from transformers import AutoTokenizer
@@ -135,7 +137,7 @@ def whole_word_masking_data_collator(features,whole_word_masking_probability):
 
     return tf_default_data_collator(features)
 
-def split_dataset(train_size,fraction,grouped_tokenized_datasets,seed=1):
+def split_dataset(train_size,fraction,grouped_tokenized_datasets,seed):
 
     """
     Split the dataset into train and eval
@@ -246,7 +248,7 @@ def predict_masked_word(text,new_model):
 
     return preds
 
-def trainer(tf_train_dataset,model,lr = 2e-5,warmup = 1_000,wdr = 0.01):
+def trainer(tf_train_dataset,model,lr,warmup,wdr):
 
     """
     Initializing trainer for training of the model
@@ -270,6 +272,7 @@ def trainer(tf_train_dataset,model,lr = 2e-5,warmup = 1_000,wdr = 0.01):
     )
 
     # You need to comple a model to train 
+    # https://stackoverflow.com/questions/47995324/does-model-compile-initialize-all-the-weights-and-biases-in-keras-tensorflow
 
     model.compile(optimizer=optimizer)
 
@@ -281,7 +284,7 @@ def trainer(tf_train_dataset,model,lr = 2e-5,warmup = 1_000,wdr = 0.01):
     return model
     
 
-def main(model,tokenizer,path,normal_masking_probability,whole_word_masking_probability,chunk_size,train_size,fraction,sample_text,type_of_masking,model_name,batch_size,seed=1,lr = 2e-5,warmup = 1_000,wdr = 0.01):
+def main(model,tokenizer,path,normal_masking_probability,whole_word_masking_probability,chunk_size,train_size,fraction,sample_text,type_of_masking,model_name,batch_size,seed,lr,warmup,wdr):
     """
     Running the whole script
 
@@ -325,7 +328,7 @@ def main(model,tokenizer,path,normal_masking_probability,whole_word_masking_prob
     group = functools.partial(group_texts, chunk_size=chunk_size)
     grouped_tokenized_datasets = tokenized_datasets.map(group, batched=True)
 
-    print(f'\nGrouped the tokenized dataset into chunks of {128}\n')
+    print(f'\nGrouped the tokenized dataset into chunks of {chunk_size}\n')
 
     # Choosing between normal masking and whole word masking 
 
@@ -339,7 +342,7 @@ def main(model,tokenizer,path,normal_masking_probability,whole_word_masking_prob
     
     # Split the tokenized grouped dataset into train and eval sub datasets
 
-    downsampled_dataset = split_dataset(train_size,fraction,grouped_tokenized_datasets)
+    downsampled_dataset = split_dataset(train_size,fraction,grouped_tokenized_datasets,seed)
 
     # Random masking of the train set
 
@@ -351,7 +354,7 @@ def main(model,tokenizer,path,normal_masking_probability,whole_word_masking_prob
 
     #Compling the base model with the optimizer
 
-    model = trainer(tf_train_dataset,model)
+    model = trainer(tf_train_dataset,model,lr,warmup,wdr)
 
     #Getting perplexity results before training 
 
@@ -384,44 +387,25 @@ def main(model,tokenizer,path,normal_masking_probability,whole_word_masking_prob
     print("completed training")
 
 
+if __name__ == "__main__":
+    model_checkpoint = sys.argv[1]
+    model = TFAutoModelForMaskedLM.from_pretrained(model_checkpoint)
+    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+    path = sys.argv[2]
+    normal_masking_probability = float(sys.argv[3])
+    whole_word_masking_probability = float(sys.argv[4])
+    chunk_size = int(sys.argv[5])
+    train_size = int(sys.argv[6])
+    fraction = float(sys.argv[7])
+    MASK_TOKEN = tokenizer.mask_token
+    sample_text = f'{sys.argv[8]} {MASK_TOKEN}'
+    type_of_masking = sys.argv[9]
+    model_name = sys.argv[10]
+    batch_size =  int(sys.argv[11])
+    seed = int(sys.argv[12])
+    lr = float(sys.argv[13])
+    warmup = int(sys.argv[14])
+    wdr = int(sys.argv[15])
 
-# selecting the base model
+    main(model,tokenizer,path,normal_masking_probability,whole_word_masking_probability,chunk_size,train_size,fraction,sample_text,type_of_masking,model_name,batch_size)
 
-#model_checkpoint = "distilroberta-base"
-
-# selecting the base masked language model based on the base model
-
-#model = TFAutoModelForMaskedLM.from_pretrained(model_checkpoint)
-
-# selecting the tokenizer based on the base model
-
-#tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-
-# chunk size of the sequence of each group after grouping 
-
-#MASK_TOKEN = tokenizer.mask_token
-
-# choose between normal masking and whole word masking 
-
-#type_of_masking = 'normal masking'
-
-# path where the text data set is
-
-#path = 'C:/Users/Hari Shiman/Desktop/Data/text/trial.txt'
-
-#batch_size = 32
-
-# number of rows of the eval data set based on the fraction of size of training dataset
-
-#frac = 0.1
-
-# number of rows of the training data set
-
-#train_size = 1000
-
-#sample_text = f"top up {MASK_TOKEN}"
-
-#name_of_model = 'ml_model_trial'#
-
-
-main(model,tokenizer,path,0.15,0.2,128,train_size,frac,sample_text,type_of_masking,'trial2',batch_size)
