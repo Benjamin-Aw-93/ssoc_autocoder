@@ -1,0 +1,8 @@
+defaults:
+  - model: model.yaml
+  - data: data.yaml
+  - trainer: trainer.yaml
+  - callbacks: default.yaml
+  - logger: mlflow.yaml
+  - paths: default.yaml
+  - _self_

@@ -1,0 +1,12 @@
+_target_: lightning_classes.data.LMDataClass.JobAdDataModule
+data_dir: ${paths.data_dir}/pre-training data-sample.txt
+batch_size: 128
+num_workers: 1
+persistant_workers: True
+pin_memory: True
+chunk_size: 128
+seed: 1
+normal_masking_probability: 0.2
+train_size: 8
+fraction: 0.2
+tokenizer: ${model.model.tokenizer}

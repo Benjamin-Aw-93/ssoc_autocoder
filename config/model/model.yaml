@@ -1,0 +1,22 @@
+_target_: lightning_classes.model.LMClass.MLM
+
+model:
+  filepath: ${paths.model_dir}/distilbert/
+  tokenizer: ${paths.model_dir}/distilbert/
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: transformers.get_scheduler
+  _partial_: true
+  name: linear
+  optimizer: optimizer
+
+other_params:
+  num_warmup_steps: 0
+  num_training_steps: 200
+

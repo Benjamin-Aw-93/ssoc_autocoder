@@ -1,6 +1,8 @@
 # Top-level folders to ignore
 /Data
 /Models
+/data
+/model
 /venv
 /Notebooks/Exported Files
 /Notebooks/Pickle Files

@@ -1,0 +1,6 @@
+# @package _global_
+defaults:
+  - override /model: distilroberta #some other yaml config file with cofigurations for the experiment.
+
+epochs: 20
+lr: 4e-5
