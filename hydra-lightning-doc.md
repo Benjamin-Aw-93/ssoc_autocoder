@@ -1,14 +1,14 @@
 # Hydra-Lightning Document
 
-This documentation provides a basic overview of getting up to speed with incorporating hydra for the purposes of tracking various deep learning  experiments with pytorch lightning. The documentation is adapted from a lightning-hydra template; Please refer to the git repository [lightning-hydra](https://github.com/ashleve/lightning-hydra-template) for a more comprehensive guide to the whole process of transforming your pytorch setup.
+This documentation provides a basic overview of getting up to speed with incorporating hydra for the purposes of tracking various deep learning experiments with pytorch lightning. The documentation is adapted from a lightning-hydra template; Please refer to the git repository [lightning-hydra](https://github.com/ashleve/lightning-hydra-template) for a more comprehensive guide to the whole process of transforming your pytorch setup.
 
-For this documentation, the base assumption would be that there is an existing model written in pytorch. What follows generally would be:
+For this documentation, the base assumption would be that there is an existing model written in pytorch. We list down certain steps that would occur during the process of converting to hydra-lightning:
 
 1. Installation of hydra and lightning: \
     `pip install hydra-core lightning`
 
 2. The reorganisation of project folder:
-    Adapted from [lightning-hydra](https://github.com/ashleve/lightning-hydra-template), this is an example of how a folder directory should look like. The main difference from before would be the inclusion of the `configs` folder which serves to store the various hydra configuration files that would be used during the training/experiments.
+    Adapted from [lightning-hydra](https://github.com/ashleve/lightning-hydra-template), this is an example of how a folder directory should look like. The main difference from before rewriting the project using the hydra-lightning template would be the inclusion of the `configs` folder, which serves to store the various hydra configuration files that would be used during trainings or experiments.
     ```
     ├── configs                   <- Hydra configs
     │   ├── callbacks                <- Callbacks configs
@@ -37,7 +37,7 @@ For this documentation, the base assumption would be that there is an existing m
     │                             the creator's initials, and a short `-` delimited description,
     │                             e.g. `1.0-jqp-initial-data-exploration.ipynb`.
     │
-    ├── src                    <- Source code
+    ├── lightning_classes (src)      <- Source code
     │   ├── data                     <- Data scripts, LightningDataModules
     │   ├── models                   <- Model scripts, LightningModules
     │   ├── utils                    <- Utility scripts
@@ -83,6 +83,6 @@ This is the tedious portion of the process. The two main components that needs t
             self.train_loss(loss) # tracking of the training loss using train_loss
             return loss
     ```
-    This would be carried out for all the data loading and training/evaluation steps carried out in the original processes. For further examples of how certain snippets are written, please look at the `lightning_classes` folder where the data and model codes are stored, or refer to [lightning-hydra](https://github.com/ashleve/lightning-hydra-template) for more details.
+    The rewriting process would be have to be performed for data loading and training/evaluation steps. For further examples of how certain snippets are written, please look at the `lightning_classes` folder where the data and model codes are stored, or refer to [lightning-hydra](https://github.com/ashleve/lightning-hydra-template) for more details.
 4. Setting up the hydra configuration files. (Coming Soon)
 5. Writing configuration files for new experiments. (Coming Soon)
