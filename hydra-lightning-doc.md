@@ -50,7 +50,7 @@ For this documentation, the base assumption would be that there is an existing m
 
 3. Rewritting pytorch code into lightning code: 
 This is the tedious portion of the process. The two main components that needs to be re-expressed in lightning would be data loading and training/evalutation steps. The components would have to be broken down/decomposed and placed into the various methods required by the `LightningDataModule` and `LightningModule` classes respectively. For example, this code snippet in pytorch:
-    ```
+    ```python
     for epoch in range(num_train_epochs):
         # Training
         model.train()
@@ -58,13 +58,17 @@ This is the tedious portion of the process. The two main components that needs t
             outputs = model(**batch)
             loss = outputs.loss
             accelerator.backward(loss)
+    ```
+    would be rewritten as a collection of methods within a `LightningModule` class:
+    ```python
+    from lightning import LightningModule
 
-            optimizer.step()
-            lr_scheduler.step()
-            optimizer.zero_grad() 
-    ```
-    would be rewritten as:
-    ```
+    class SomeNewClass(LightningModule):
+        def __init__(self):
+            .
+            .
+            .
+    
         def forward(self, batch):
             return self.lm(**batch)
         
@@ -80,5 +84,5 @@ This is the tedious portion of the process. The two main components that needs t
             return loss
     ```
     This would be carried out for all the data loading and training/evaluation steps carried out in the original processes. For further examples of how certain snippets are written, please look at the `lightning_classes` folder where the data and model codes are stored, or refer to [lightning-hydra](https://github.com/ashleve/lightning-hydra-template) for more details.
-4. Setting up the hydra configuration files.
-5. Writing configuration files for new experiments.
+4. Setting up the hydra configuration files. (Coming Soon)
+5. Writing configuration files for new experiments. (Coming Soon)
