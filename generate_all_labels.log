@@ -1,5 +1,0 @@
-2023-03-20 10:58:39,250 INFO     There are no conflicts in uuids! Creating all_labels.json file...
-2023-03-20 10:58:39,264 INFO     In 12345.xlsx, there are 2 uuids added into all_labels.json file
-2023-03-20 10:58:39,275 INFO     In 23456.xlsx, there are 2 uuids added into all_labels.json file
-2023-03-20 10:58:39,293 INFO     In 34567.xlsx, there are 2 uuids added into all_labels.json file
-2023-03-20 10:58:39,295 INFO     all_labels_20-03-2023-10-58-39.json has been created!

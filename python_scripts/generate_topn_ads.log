@@ -1,0 +1,14 @@
+2023-04-12 16:24:57,638 INFO     Generating top 30 for 41320
+2023-04-12 16:24:57,639 INFO     Creating excel file for 41320
+2023-04-12 16:24:57,642 INFO     Top 30 ads for 41320 has been generated
+2023-04-12 16:24:57,642 INFO     Index(['uuid', 'title', 'description', 'minimumYearsExperience',
+       'numberOfVacancies', 'mcf_ssoc_code', 'skills', 'company_name',
+       'company_description', 'company_ssicCode', 'company_employeeCount',
+       'jobPostId', 'originalPostingDate', 'newPostingDate', 'expiryDate',
+       'totalNumberOfView', 'totalNumberJobApplication', 'salary_maximum',
+       'salary_minimum', 'salary_type_id', 'salary_type', 'ssocCode',
+       'cleaned_description', 'cosine_similarity', 'Label As SSOC',
+       'yearMonth'],
+      dtype='object')
+2023-04-12 16:24:57,675 INFO     Data has been exported to data/labels/cosine_similarity/excel/41320.xlsx
+2023-04-12 16:24:57,675 INFO     Excel for 41320 has been exported to labels/cosine_similarity

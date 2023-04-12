@@ -1,0 +1,21 @@
+2023-04-12 16:24:03,689 INFO     Converting raw data for 2022-08
+2023-04-12 16:24:03,761 INFO     Tokenizing and generating embeddings...
+2023-04-12 16:24:03,761 INFO     There are 0.09375 batches of 64s
+2023-04-12 16:24:09,634 INFO     data/processed/2022-08 is not found in `processed`
+2023-04-12 16:24:09,634 INFO     Creating data/processed/2022-08 in `proccessed`
+2023-04-12 16:24:09,640 INFO     Converting raw data for 2022-09
+2023-04-12 16:24:09,720 INFO     Tokenizing and generating embeddings...
+2023-04-12 16:24:09,721 INFO     There are 0.09375 batches of 64s
+2023-04-12 16:24:15,663 INFO     data/processed/2022-09 is not found in `processed`
+2023-04-12 16:24:15,663 INFO     Creating data/processed/2022-09 in `proccessed`
+2023-04-12 16:24:15,663 INFO     Converting raw data for 2022-10
+2023-04-12 16:24:15,738 INFO     Tokenizing and generating embeddings...
+2023-04-12 16:24:15,738 INFO     There are 0.09375 batches of 64s
+2023-04-12 16:24:22,406 INFO     data/processed/2022-10 is not found in `processed`
+2023-04-12 16:24:22,406 INFO     Creating data/processed/2022-10 in `proccessed`
+2023-04-12 16:24:22,414 INFO     Converting raw data for 2022-11
+2023-04-12 16:24:22,481 INFO     Tokenizing and generating embeddings...
+2023-04-12 16:24:22,481 INFO     There are 0.09375 batches of 64s
+2023-04-12 16:24:29,548 INFO     data/processed/2022-11 is not found in `processed`
+2023-04-12 16:24:29,548 INFO     Creating data/processed/2022-11 in `proccessed`
+2023-04-12 16:24:29,555 WARNING  Could not find data in data/raw/2022-12, skipping to the next date.

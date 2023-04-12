@@ -1,0 +1,30 @@
+{
+
+    "generate_topn_ads": {
+        "excel_folder_path": "data/labels/cosine_similarity/excel",
+        "detailed_def_embeddings_filepath": "data/detailed_def_embeddings.pickle",
+        "detailed_def_filepath": "SSOC2020 Detailed Definitions.xlsx",
+        "year_month": "2022-07",
+        "n": 30,
+        "rare_list": ["41320"]
+    },
+
+    "generate_processed_data": {
+        "start_date": "2022-08",
+        "end_date": "2022-12",
+        "model_picklepath": "distilbert/model/model.pickle",
+        "tokenizer_filepath": "distilbert/tokenizer"
+    },
+
+    "generate_finetuning_dataset": {
+        "directory_path" : "data/labels/cosine_similarity",
+        "finetuning_dir_path" : "data/finetuning_dataset",
+        "test_size": 0.3
+    },
+
+    "generate_all_labels": {
+        "folder_path" : "data/labels/cosine_similarity",
+        "excel_folder_path": "data/labels/cosine_similarity/excel"
+    }
+
+}

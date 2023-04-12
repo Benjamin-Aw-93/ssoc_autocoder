@@ -1,0 +1,4 @@
+2023-04-12 16:38:15,670 INFO     Scanning for 41320
+2023-04-12 16:38:15,672 INFO     There are no conflicts in uuids! Creating all_labels.json file...
+2023-04-12 16:38:15,687 INFO     In 41320.xlsx, there are 2 uuids added into all_labels.json file
+2023-04-12 16:38:15,696 INFO     all_labels_12-04-2023-16-38-15.json has been created!
