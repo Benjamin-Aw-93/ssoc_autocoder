@@ -1,0 +1,14 @@
+_target_: lightning_classes.data.ClassificationDataClass.AdsDataModule
+data_dir: ${paths.data_dir}/train.csv
+test_dir: ${paths.data_dir}/test.csv
+batch_size: 128
+num_workers: 1
+persistant_workers: True
+pin_memory: True
+chunk_size: 128
+seed: 1
+normal_masking_probability: 0.2
+train_size: 8
+fraction: 0.2
+tokenizer: ${model.model.tokenizer}
+ssoc_idx_encoding_filepath: ${paths.data_dir}/ssoc-idx-encoding.json

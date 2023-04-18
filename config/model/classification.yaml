@@ -1,4 +1,4 @@
-_target_: lightning_classes.model.LMClass.MLM
+_target_: lightning_classes.model.Classification.HierarchicalSSOCClassifier
 
 model:
   filepath: ${paths.model_dir}/distilbert/
@@ -16,6 +16,11 @@ scheduler:
   name: linear
   optimizer: optimizer
 
+net:
+  _target_: lightning_classes.model.components.Hierarchical.V2pt2
+  lm_filepath: ${paths.model_dir}/distilbert/
+  max_level: 5
+  
 other_params:
   num_warmup_steps: 0
   num_training_steps: 200
