@@ -26,25 +26,27 @@ def main():
     sol_df['emb_title'] = sol_df['emb_title'].apply(literal_eval)
     sol_df['emb_text'] = sol_df['emb_text'].apply(literal_eval)
     sol_df['comb'] = [x + y for x,y in zip(sol_df['emb_title'], sol_df['emb_text'])]
-    
+    col1, col2 = st.columns(2)
     if job_id:
-        result1 = query_api(f'{main_url}={job_id}')
-        ad_descript = query_api(f'{descript_url}={job_id}')
-        st.write(ad_descript['job_title'])
-        st.components.v1.html(ad_descript['job_desc'], height=600, width=300)
-        if result1:
-            # concatenate the vectors from the API query
-            concat_r1 = np.array(result1['embeddings_title'][0]+result1['embeddings_text'][0]).reshape(1, -1)
-            # obtain similarity scores
-            
-            result_df = pd.DataFrame({"SOL Occupation":sol_df['SOL Occupation'],
-                'similarity': list(map(lambda x: similarity(concat_r1, np.array(x)).round(3), sol_df['comb']))}).sort_values('similarity', ascending=False)
-            # output as a filtered list
-            value = st.slider("Select a value", 0.0, 1.0, 0.05)
-            if value: 
-                st.dataframe(result_df[result_df['similarity']>value])
-        else:
-            st.error("Error occurred during API call.")
+        with col1:
+            ad_descript = query_api(f'{descript_url}={job_id}')
+            st.write(ad_descript['job_title'])
+            st.components.v1.html(ad_descript['job_desc'], height=600)
+        with col2:
+            result1 = query_api(f'{main_url}={job_id}')
+            if result1:
+                # concatenate the vectors from the API query
+                concat_r1 = np.array(result1['embeddings_title'][0]+result1['embeddings_text'][0]).reshape(1, -1)
+                # obtain similarity scores
+                
+                result_df = pd.DataFrame({"SOL Occupation":sol_df['SOL Occupation'],
+                    'similarity': list(map(lambda x: similarity(concat_r1, np.array(x)).round(3), sol_df['comb']))}).sort_values('similarity', ascending=False)
+                # output as a filtered list
+                value = st.slider("Select a value", 0.0, 1.0, 0.05)
+                if value: 
+                    st.dataframe(result_df[result_df['similarity']>value])
+            else:
+                st.error("Error occurred during API call.")
     else:
         st.warning("Please enter the API URL.")
 
