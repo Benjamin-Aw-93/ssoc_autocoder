@@ -18,11 +18,6 @@ RUN pip cache purge
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r /code/requirements.txt
 RUN python -m spacy download en_core_web_lg
-# Install other requirements
-RUN pip install fastapi uvicorn transformers==4.19.2 torch==1.13.1
-RUN pip install scikit-learn==1.1.1
-RUN pip install beautifulsoup4==4.11.1
-RUN pip install boto3==1.24.31
 
 # Copy all the code files into the app subfolder
 COPY . /code/app
