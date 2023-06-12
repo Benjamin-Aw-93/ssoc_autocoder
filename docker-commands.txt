@@ -1,0 +1,8 @@
+# To build the docker image on your local computer
+docker build -t autocoder . 
+
+# To run the Docker container locally
+docker run -dp 8000:8000 autocoder
+
+# To tunnel into the Docker container
+docker exec -u root -it <container-id> /bin/bash

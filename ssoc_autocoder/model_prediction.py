@@ -63,6 +63,54 @@ def model_predict(pretrained_filepath,
     prediction = generate_single_prediction(model, tokenizer, text, None, encoding)
 
     return prediction
+def generate_embeddings(model, 
+                        tokenizer, 
+                        title,
+                        text):
+    # Check data type
+    if type(text) != str:
+        raise TypeError("Please enter a string for the 'text' argument.")
+    if type(title) != str:
+        raise TypeError("Please enter a string for the 'title' argument.")
+
+    # Tokenize the title and text using the DistilBERT tokenizer
+    tokenized_title = tokenizer(
+        text = title,
+        text_pair = None,
+        add_special_tokens = True,
+        max_length = 512,
+        padding = 'max_length',
+        return_token_type_ids = True,
+        truncation = True
+    )
+    tokenized_text = tokenizer(
+        text = text,
+        text_pair = None,
+        add_special_tokens = True,
+        max_length = 512,
+        padding = 'max_length',
+        return_token_type_ids = True,
+        truncation = True
+    )
+    
+    # Extract the tensors from the tokenizer
+    title_ids = torch.tensor([tokenized_title['input_ids']], dtype = torch.long)
+    title_mask = torch.tensor([tokenized_title['attention_mask']], dtype = torch.long)
+    text_ids = torch.tensor([tokenized_text['input_ids']], dtype = torch.long)
+    text_mask = torch.tensor([tokenized_text['attention_mask']], dtype = torch.long)
+
+    # Set the model to evaluation mode and generate the predictions
+    model.eval()
+    with torch.no_grad():
+        title_vec = model.l1(title_ids, title_mask)[0][:, 0]
+        text_vec = model.l1(text_ids, text_mask)[0][:, 0]
+    
+    embeddings_extracted = {
+            'embeddings_title': title_vec.detach().numpy().tolist(),
+            'embeddings_text': text_vec.detach().numpy().tolist()
+        }
+    
+    return embeddings_extracted
 
 def generate_single_prediction(model, 
                                tokenizer, 

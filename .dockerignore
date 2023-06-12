@@ -1,0 +1,8 @@
+/data
+/notebooks
+/archive
+/venv
+.gitignore
+.gitlab-ci.yml
+docker-commands.txt
+README.md
