@@ -56,4 +56,4 @@ typing-extensions==4.2.0
 urllib3==1.26.9
 uvicorn==0.17.6
 wasabi==0.9.1
-streamlit=1.23.1
+streamlit==1.23.1

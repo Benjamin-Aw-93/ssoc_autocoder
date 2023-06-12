@@ -10,6 +10,7 @@ import json
 import torch
 from transformers import DistilBertTokenizer
 from ssoc_autocoder import model_training
+import pickle
 
 # Setting the default SSOC prediction parameters here
 ssoc_prediction_parameters = {
@@ -20,10 +21,10 @@ ssoc_prediction_parameters = {
     'SSOC_5D': {'top_n': 10, 'min_prob': 0.1}
 }
 
-def model_predict(pretrained_filepath,
-                  model_filepath, 
+def model_predict(model_filepath, 
                   tokenizer_filepath, 
                   ssoc_idx_encoding_filepath, 
+                  title,
                   text):
 
     """
@@ -43,26 +44,19 @@ def model_predict(pretrained_filepath,
         Python dictionary of predictions and probabilities at each SSOC level
     """
 
-    model_parameters = {
-        'pretrained_model': pretrained_filepath,
-        'local_files_only': True,
-        'max_level': 5
-    }
-
-    # Initialise the model and tokenizer objects
-    model = model_training.HierarchicalSSOCClassifier(model_parameters)
+    # Load the model and tokenizer objects
+    with open(model_filepath, 'rb') as handle:
+        model = pickle.load(handle)
     tokenizer = DistilBertTokenizer.from_pretrained(tokenizer_filepath)
 
     # Reading in the SSOC-index encoding
     encoding = model_training.import_ssoc_idx_encoding(ssoc_idx_encoding_filepath)
 
-    # Read in the trained parameters
-    model.load_state_dict(torch.load(model_filepath))
-
     # Generate prediction
-    prediction = generate_single_prediction(model, tokenizer, text, None, encoding)
+    prediction = generate_single_prediction(model, tokenizer, title, text, None, ssoc_prediction_parameters["SSOC_5D"]["top_n"], encoding)
 
     return prediction
+
 def generate_embeddings(model, 
                         tokenizer, 
                         title,
@@ -111,12 +105,19 @@ def generate_embeddings(model,
         }
     
     return embeddings_extracted
+    
+                        
 
 def generate_single_prediction(model, 
                                tokenizer, 
+                               title,
                                text, 
                                target, 
                                encoding,
+                               top_5D_n,
+                               return_occupation, 
+                               return_confidence_score, 
+                               return_description,
                                ssoc_prediction_parameters = ssoc_prediction_parameters):
         
     """
@@ -128,11 +129,20 @@ def generate_single_prediction(model,
     # Check data type
     if type(text) != str:
         raise TypeError("Please enter a string for the 'text' argument.")
-    if type(target) != str:
-        raise TypeError("Please enter a string for the 'target' argument.")
+    if type(title) != str:
+        raise TypeError("Please enter a string for the 'title' argument.")
 
-    # Tokenize the text using the DistilBERT tokenizer
-    tokenized = tokenizer(
+    # Tokenize the title and text using the DistilBERT tokenizer
+    tokenized_title = tokenizer(
+        text = title,
+        text_pair = None,
+        add_special_tokens = True,
+        max_length = 512,
+        padding = 'max_length',
+        return_token_type_ids = True,
+        truncation = True
+    )
+    tokenized_text = tokenizer(
         text = text,
         text_pair = None,
         add_special_tokens = True,
@@ -143,21 +153,27 @@ def generate_single_prediction(model,
     )
     
     # Extract the tensors from the tokenizer
-    test_ids = torch.tensor([tokenized['input_ids']], dtype = torch.long)
-    test_mask = torch.tensor([tokenized['attention_mask']], dtype = torch.long)
-    
+    title_ids = torch.tensor([tokenized_title['input_ids']], dtype = torch.long)
+    title_mask = torch.tensor([tokenized_title['attention_mask']], dtype = torch.long)
+    text_ids = torch.tensor([tokenized_text['input_ids']], dtype = torch.long)
+    text_mask = torch.tensor([tokenized_text['attention_mask']], dtype = torch.long)
+
     # Set the model to evaluation mode and generate the predictions
     model.eval()
     with torch.no_grad():
-        preds = model(test_ids, test_mask)
+        preds = model(title_ids, title_mask, text_ids, text_mask)
         m = torch.nn.Softmax(dim=1)
     
     # Iteratively generate predictions for each SSOC level that is specified
     predictions_with_proba = {}
     for ssoc_level, ssoc_level_params in sorted(ssoc_prediction_parameters.items()):
         
-        # Extract the indices of the top n predicted SSOCs for the given SSOC level
-        predicted_idx = preds[ssoc_level].detach().numpy().argsort()[0][::-1][:ssoc_level_params["top_n"]]
+        if ssoc_level != "SSOC_5D":
+            # Extract the indices of the top n predicted SSOCs for the given SSOC level
+            predicted_idx = preds[ssoc_level].detach().numpy().argsort()[0][::-1][:ssoc_level_params["top_n"]]
+        else:
+             # Extract the indices of the top n predicted SSOCs based on user input
+            predicted_idx = preds[ssoc_level].detach().numpy().argsort()[0][::-1][:top_5D_n]
         
         # Extract the actual predicted probabilities from the softmax layer using the indices
         predicted_proba_all = m(preds[ssoc_level]).detach().numpy()[0]

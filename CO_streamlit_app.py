@@ -16,8 +16,27 @@ def query_api(url):
 
 @st.cache_data
 def similarity(vec1, vec2):
-    similarity_scores = vec1 @ vec2.T/(norm(vec1)*norm(vec2))
-    return similarity_scores
+    return vec1 @ vec2.T/(norm(vec1)*norm(vec2))
+
+@st.cache_data
+def call_job_description(url):
+    ad_descript = query_api(url)
+    st.write(ad_descript['job_title'])
+    st.components.v1.html(ad_descript['job_desc'], height=600)
+
+@st.cache_data
+def compare_similarity(url, sol_df):
+    result1 = query_api(url)
+    if result1:
+        # concatenate the vectors from the API query
+        concat_r1 = np.array(result1['embeddings_title'][0]+result1['embeddings_text'][0]).reshape(1, -1)
+        # obtain similarity scores
+        
+        result_df = pd.DataFrame({"SOL Occupation":sol_df['SOL Occupation'],
+            'similarity': list(map(lambda x: similarity(concat_r1, np.array(x)).round(3), sol_df['comb']))}).sort_values('similarity', ascending=False)
+        return result_df
+    else:
+        st.error("Error occurred during API call.")
 
 def main():
     st.set_page_config(layout="wide")
@@ -39,8 +58,9 @@ def main():
 
 
     job_id = st.text_input("Enter MCF Job ID")
-    main_url = 'http://localhost:8000/embeddings?id'
-
+    main_url = "http://localhost:8000/embeddings?id"
+    desc_url = "http://localhost:8000/prediction?query_type=id&id"
+    
     # import SOL dataframe and its embeddings
     sol_df = pd.read_csv('data/SOL_embeddings.csv')
     sol_df['emb_title'] = sol_df['emb_title'].apply(literal_eval)
@@ -76,7 +96,7 @@ def main():
 
                 with col1:
                     st.subheader("MCF Job Ad")
-                    job_ad = query_api(f'http://localhost:8000/prediction?query_type=id&id={job_id}&n_results=1&return_occupation=false&return_confidence_score=false&return_description=false')
+                    job_ad = query_api(f'{desc_url}={job_id}')
                     st.markdown(f'##### {job_ad["job_title"]}')
                     st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
 
