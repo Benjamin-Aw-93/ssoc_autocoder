@@ -14,7 +14,24 @@ def query_api(url):
     
 def similarity(vec1, vec2):
     return vec1 @ vec2.T/(norm(vec1)*norm(vec2))
-
+@st.cache_data
+def call_job_description(url):
+    ad_descript = query_api(url)
+    st.write(ad_descript['job_title'])
+    st.components.v1.html(ad_descript['job_desc'], height=600)
+@st.cache_data
+def compare_similarity(url, sol_df):
+    result1 = query_api(url)
+    if result1:
+        # concatenate the vectors from the API query
+        concat_r1 = np.array(result1['embeddings_title'][0]+result1['embeddings_text'][0]).reshape(1, -1)
+        # obtain similarity scores
+        
+        result_df = pd.DataFrame({"SOL Occupation":sol_df['SOL Occupation'],
+            'similarity': list(map(lambda x: similarity(concat_r1, np.array(x)).round(3), sol_df['comb']))}).sort_values('similarity', ascending=False)
+        return result_df
+    else:
+        st.error("Error occurred during API call.")
 def main():
     st.title("SOL Similarity Checker")
     job_id = st.text_input("Enter MCF Job ID")
@@ -26,27 +43,17 @@ def main():
     sol_df['emb_title'] = sol_df['emb_title'].apply(literal_eval)
     sol_df['emb_text'] = sol_df['emb_text'].apply(literal_eval)
     sol_df['comb'] = [x + y for x,y in zip(sol_df['emb_title'], sol_df['emb_text'])]
+    # split the result across various columns
     col1, col2 = st.columns(2)
     if job_id:
         with col1:
-            ad_descript = query_api(f'{descript_url}={job_id}')
-            st.write(ad_descript['job_title'])
-            st.components.v1.html(ad_descript['job_desc'], height=600)
+            call_job_description(f'{descript_url}={job_id}')
         with col2:
-            result1 = query_api(f'{main_url}={job_id}')
-            if result1:
-                # concatenate the vectors from the API query
-                concat_r1 = np.array(result1['embeddings_title'][0]+result1['embeddings_text'][0]).reshape(1, -1)
-                # obtain similarity scores
-                
-                result_df = pd.DataFrame({"SOL Occupation":sol_df['SOL Occupation'],
-                    'similarity': list(map(lambda x: similarity(concat_r1, np.array(x)).round(3), sol_df['comb']))}).sort_values('similarity', ascending=False)
-                # output as a filtered list
-                value = st.slider("Select a value", 0.0, 1.0, 0.05)
-                if value: 
-                    st.dataframe(result_df[result_df['similarity']>value])
-            else:
-                st.error("Error occurred during API call.")
+            sim_df = compare_similarity(f'{main_url}={job_id}', sol_df)
+            # output as a filtered list
+            value = st.slider("Similarity Filter", 0.0, 1.0, 0.05)
+            if value: 
+                st.dataframe(sim_df[sim_df['similarity']>value], hide_index=True)
     else:
         st.warning("Please enter the API URL.")
 
