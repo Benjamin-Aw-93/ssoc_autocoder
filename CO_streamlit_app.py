@@ -19,6 +19,8 @@ def main():
     st.title("SOL Similarity Checker")
     job_id = st.text_input("Enter MCF Job ID")
     main_url = 'http://localhost:8000/embeddings?id'
+    # get job description and display it during the comparison
+    descript_url = 'http://localhost:8000/prediction?query_type=id&id'
     # import SOL dataframe and its embeddings
     sol_df = pd.read_csv('data/SOL_embeddings.csv')
     sol_df['emb_title'] = sol_df['emb_title'].apply(literal_eval)
@@ -27,6 +29,9 @@ def main():
     
     if job_id:
         result1 = query_api(f'{main_url}={job_id}')
+        ad_descript = query_api(f'{descript_url}={job_id}')
+        st.write(ad_descript['job_title'])
+        st.components.v1.html(ad_descript['job_desc'], height=600, width=300)
         if result1:
             # concatenate the vectors from the API query
             concat_r1 = np.array(result1['embeddings_title'][0]+result1['embeddings_text'][0]).reshape(1, -1)
