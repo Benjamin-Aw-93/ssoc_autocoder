@@ -58,11 +58,11 @@ def main():
 
 
     job_id = st.text_input("Enter MCF Job ID")
-    main_url = "http://localhost:8000/embeddings?id"
+    main_url = "http://localhost:8000/sentence_embeddings?id"
     desc_url = "http://localhost:8000/prediction?query_type=id&id"
     
     # import SOL dataframe and its embeddings
-    sol_df = pd.read_csv('data/SOL_embeddings.csv')
+    sol_df = pd.read_csv('data/SOL_embeddings_sentence_transformers.csv')
     sol_df['emb_title'] = sol_df['emb_title'].apply(literal_eval)
     sol_df['emb_text'] = sol_df['emb_text'].apply(literal_eval)
     sol_df['comb'] = [x + y for x,y in zip(sol_df['emb_title'], sol_df['emb_text'])]
@@ -75,9 +75,9 @@ def main():
         
         if result1:
             # concatenate the vectors from the API query
-            concat_r1 = np.array(result1['embeddings_title'][0]+result1['embeddings_text'][0]).reshape(1, -1)
-            title_r1 = np.array(result1['embeddings_title'][0]).reshape(1,-1)
-            text_r1 = np.array(result1['embeddings_text'][0]).reshape(1,-1)
+            concat_r1 = np.array(result1['embeddings_title']+result1['embeddings_text']).reshape(1, -1)
+            title_r1 = np.array(result1['embeddings_title']).reshape(1,-1)
+            text_r1 = np.array(result1['embeddings_text']).reshape(1,-1)
             
             # obtain similarity scores
             

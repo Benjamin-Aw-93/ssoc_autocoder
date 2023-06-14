@@ -24,7 +24,7 @@ from typing import Optional, List
 from enum import Enum
 
 # Initialising the important artifacts
-model, tokenizer, encoding, ssoc_desc, job_title_map = api.initialise()
+model, tokenizer, encoding, ssoc_desc, job_title_map, sentence_model = api.initialise()
 
 app_description = """
 SSOC Autocoder API returns to you the corresponding SSOC codes based on job descriptions. 
@@ -256,6 +256,35 @@ def prediction(id: str = Query(title = "Job Ad ID"  ,
 
     # Call the model using the job title and job description
     output = api.generate_embeddings(model, tokenizer, job_title, job_desc)
+    
+    logger.info(f'TIMING | Model prediction: {(time.time() - model_prediction_start):.2f}s')
+
+    logger.info(f'TIMING | Overall: {(time.time() - start_time):.2f}ss')
+
+    return output
+
+@app.get('/sentence_embeddings', tags = ["Autocoder Sentence Embeddings"])
+def prediction(id: str = Query(title = "Job Ad ID"  ,
+                               default = None,
+                               description = "Enter the job ad ID from the MyCareersFuture job ad. Only works if `query_type` is `id`.")):
+    
+    # Timer for the overall prediction API
+    start_time = time.time()
+
+    logger.query(f"{id}")
+    
+    # Call the function to convert the job ad ID to the UUID
+    mcf_uuid = api.convert_to_uuid(id, input_type = "id")
+
+    job_id, job_title, job_desc = api.call_mcf_api(mcf_uuid)
+
+    logger.info(f'TIMING | MCF job API call: {(time.time() - start_time):.2f}s')
+
+    # Start timing how long the querying of the model takes
+    model_prediction_start = time.time()
+
+    # Call the model using the job title and job description
+    output = api.generate_sentence_embeddings(sentence_model, job_title, job_desc)
     
     logger.info(f'TIMING | Model prediction: {(time.time() - model_prediction_start):.2f}s')
 

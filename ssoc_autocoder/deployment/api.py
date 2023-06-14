@@ -15,6 +15,7 @@ import urllib.request
 
 # Importing the deep learning libraries
 from transformers import DistilBertTokenizer
+from sentence_transformers import SentenceTransformer
 import torch
 
 # Initialising the HTTP object for the API call
@@ -97,6 +98,7 @@ def initialise():
     ssoc_idx_encoding_filepath = 'artifacts/ssoc-idx-encoding.json'
     job_title_mapping = "artifacts/WPD_Job_title_list_mapping.json"
     ssoc_desc = "artifacts/ssoc_desc.json"
+    sentence_model_filepath = 'artifacts/sentence_transformer_all-mpnet-base-v2'
 
     # Reading in the SSOC-index encoding
     encoding = model_training.import_ssoc_idx_encoding(ssoc_idx_encoding_filepath)
@@ -111,6 +113,8 @@ def initialise():
     with open(model_filepath, 'rb') as handle:
         model = pickle.load(handle)
     tokenizer = DistilBertTokenizer.from_pretrained(tokenizer_filepath)
+    # Load sentence_transformer
+    sentence_model = SentenceTransformer(sentence_model_filepath)
     logger.info(f'Successfully loaded all required artifacts!')
 
     # Load in WPD job titles list 
@@ -118,7 +122,7 @@ def initialise():
         job_title_map = json.load(mapping_file)
     logger.debug('Loaded WPD job title mapping')
     
-    return model, tokenizer, encoding, ssoc_desc, job_title_map
+    return model, tokenizer, encoding, ssoc_desc, job_title_map, sentence_model
 
 def convert_to_uuid(input, input_type):
     """
@@ -232,6 +236,19 @@ def generate_embeddings(model,
     embeddings = model_prediction.generate_embeddings(model, tokenizer, job_title, text_cleaning.process_text(job_desc))
 
     logger.debug('Prediction generated')
+
+    return embeddings
+
+def generate_sentence_embeddings(sentence_model, 
+                                 job_title, 
+                                 job_desc):
+    """
+    Generates the sentence embeddings for the job ad.
+    """
+    embeddings = {'embeddings_title': sentence_model.encode(job_title).tolist(), 
+                  'embeddings_text': sentence_model.encode(job_desc).tolist()}
+
+    logger.debug('Sentence embeddings generated')
 
     return embeddings
 
