@@ -68,6 +68,7 @@ def main():
     sol_df['comb'] = [x + y for x,y in zip(sol_df['emb_title'], sol_df['emb_text'])]
 
     sol_detailed_df = pd.read_excel('data/SOL Verification checks.xlsx', sheet_name = 1)
+    main_tab, second_tab = st.tabs(["Similiarity Results", "Similarity Scores"])
 
     if job_id:
         
@@ -85,26 +86,45 @@ def main():
                                       "Combined similarity": list(map(lambda x: similarity(concat_r1, np.array(x)).round(3), sol_df['comb'])),
                                       "Title similarity": list(map(lambda x: similarity(title_r1, np.array(x)).round(3), sol_df['emb_title'])),
                                       "Text similarity": list(map(lambda x: similarity(text_r1, np.array(x)).round(3), sol_df['emb_text']))}).sort_values('Text similarity', ascending=False)
-                        
-            # output as a filtered list
-            value = st.slider("Select a value", 0.0, 1.0, 0.05)
             
-            if value: 
-                st.dataframe(result_df[result_df['Combined similarity']>value])
-
+            job_ad = query_api(f'{desc_url}={job_id}')
+            # display the main result, whether the current job ad is in the SOL list
+            with main_tab:
+                similarity_threshold = 0.6
                 col1, col2 = st.columns(2)
-
                 with col1:
                     st.subheader("MCF Job Ad")
-                    job_ad = query_api(f'{desc_url}={job_id}')
                     st.markdown(f'##### {job_ad["job_title"]}')
                     st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
-
                 with col2:
-                    st.subheader("Top SOL Occupation")
-                    top1_SOL_ref_title = result_df["SOL Occupation"].iloc[0]
-                    st.markdown(f'##### {top1_SOL_ref_title}')
-                    st.markdown(sol_detailed_df[sol_detailed_df['SOL Occupation'] == top1_SOL_ref_title].iloc[0]['Task and Duties'])
+                    st.subheader("Similarity Results")
+                    if any(result_df['Combined similarity'] > similarity_threshold):
+                        st.markdown(f'The job ad {job_ad["job_title"]} is **similar** to one of the occupations on the SOL.')
+                        st.markdown('SOL Occupations that are most similar:')
+                        st.dataframe(pd.DataFrame({'Ranking': range(1,4), 
+                            'Most Similar SOL Occupation':result_df['SOL Occupation'][0:3]}), hide_index=True)
+                    else: 
+                        st.markdown(f'The MCF Job Ad {job_ad["job_title"]} is **disimilar** to all the occupations on the SOL.')
+                                    
+            # output as a filtered list
+            with second_tab:
+                value = st.slider("Select a value", 0.0, 1.0, 0.05)
+                
+                if value: 
+                    st.dataframe(result_df[result_df['Combined similarity']>value])
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.subheader("MCF Job Ad")
+                        st.markdown(f'##### {job_ad["job_title"]}')
+                        st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
+
+                    with col2:
+                        st.subheader("Most Similar SOL Occupation")
+                        top1_SOL_ref_title = result_df["SOL Occupation"].iloc[0]
+                        st.markdown(f'##### {top1_SOL_ref_title}')
+                        st.markdown(sol_detailed_df[sol_detailed_df['SOL Occupation'] == top1_SOL_ref_title].iloc[0]['Task and Duties'])
                     
         else:
             st.error("Error occurred during API call.")
