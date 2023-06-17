@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from numpy.linalg import norm
 import requests
+from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, ColumnsAutoSizeMode
 from ast import literal_eval
 
 
@@ -89,22 +90,49 @@ def main():
             
             job_ad = query_api(f'{desc_url}={job_id}')
             # display the main result, whether the current job ad is in the SOL list
+            
             with main_tab:
+                
                 similarity_threshold = 0.6
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.subheader("MCF Job Ad")
-                    st.markdown(f'##### {job_ad["job_title"]}')
-                    st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
-                with col2:
-                    st.subheader("Similarity Results")
-                    if any(result_df['Combined similarity'] > similarity_threshold):
-                        st.markdown(f'The job ad {job_ad["job_title"]} is **similar** to one of the occupations on the SOL.')
-                        st.markdown('SOL Occupations that are most similar:')
-                        st.dataframe(pd.DataFrame({'Ranking': range(1,4), 
-                            'Most Similar SOL Occupation':result_df['SOL Occupation'][0:3]}), hide_index=True)
-                    else: 
-                        st.markdown(f'The MCF Job Ad {job_ad["job_title"]} is **disimilar** to all the occupations on the SOL.')
+                st.subheader("Similarity Results")
+                if any(result_df['Combined similarity'] > similarity_threshold):
+                    st.markdown(f'The job ad {job_ad["job_title"]} is **similar** to one of the occupations on the SOL.')
+                    st.markdown('SOL Occupations that are most similar:')
+                    # select the columns you want the users to see
+                    filt_df = pd.DataFrame({'Ranking': range(1,4), 'Most Similar SOL Occupation':result_df['SOL Occupation'][0:3]})
+                    
+                    gb = GridOptionsBuilder.from_dataframe(filt_df)
+                    # configure selection
+                    gb.configure_selection(selection_mode="single", use_checkbox=True)
+                    gb.configure_side_bar()
+                    gridOptions = gb.build()
+
+                    data = AgGrid(filt_df,
+                                  gridOptions=gridOptions,
+                                  enable_enterprise_modules=True,
+                                  allow_unsafe_jscode=True,
+                                  update_mode=GridUpdateMode.SELECTION_CHANGED,
+                                  columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW)
+                    
+                else: 
+                    st.markdown(f'The MCF Job Ad {job_ad["job_title"]} is **disimilar** to all the occupations on the SOL.')
+
+                with st.expander("Click here to compare the job ad with the selected SOL occupation"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("MCF Job Ad")
+                        st.markdown(f'##### {job_ad["job_title"]}')
+                        st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
+                    with col2:
+                        if data.selected_rows:
+                            selected_job =data.selected_rows[0]['Most Similar SOL Occupation']
+                            sol_detailed_df_filt = sol_detailed_df[sol_detailed_df['SOL Occupation'] == selected_job]
+                            st.subheader("Selected SOL description")
+                            st.markdown(f'##### {sol_detailed_df_filt.iloc[0]["SOL Occupation"]}')
+                            st.markdown(sol_detailed_df_filt.iloc[0]['Task and Duties'])
+                        else:
+                            st.info("Please select a SOL occupation from the table above")
+                    
                                     
             # output as a filtered list
             with second_tab:

@@ -5,6 +5,7 @@
 /artifacts
 /Notebooks/Exported Files
 /Notebooks/Pickle Files
+/data
 /.ipynb_checkpoints
 
 # Logging folders to ignore

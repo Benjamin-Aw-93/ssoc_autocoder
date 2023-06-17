@@ -2,7 +2,7 @@
 FROM python:3.9.16-slim-bullseye
 
 # Fixing zlib and pcre2 vulnerabilities
-RUN apt update
+RUN apt update -y
 RUN apt install zlib1g
 RUN apt install libpcre2-8-0
 RUN apt install python3-pip -y
