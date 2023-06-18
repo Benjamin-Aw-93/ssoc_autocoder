@@ -135,7 +135,7 @@ def main():
                                     
             # output as a filtered list
             with second_tab: 
-                st.dataframe(result_df[result_df['Combined similarity']>value])
+                st.dataframe(result_df)
 
                 col1, col2 = st.columns(2)
 
