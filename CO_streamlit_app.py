@@ -135,7 +135,7 @@ def main():
                                     
             # output as a filtered list
             with second_tab: 
-                st.dataframe(result_df)
+                st.dataframe(result_df, hide_index=True)
 
                 col1, col2 = st.columns(2)
 
