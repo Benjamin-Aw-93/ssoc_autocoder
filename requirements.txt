@@ -58,3 +58,4 @@ uvicorn==0.17.6
 wasabi==0.9.1
 streamlit==1.23.1
 sentence-transformers
+streamlit-aggrid
