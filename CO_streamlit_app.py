@@ -114,25 +114,24 @@ def main():
                                   update_mode=GridUpdateMode.SELECTION_CHANGED,
                                   columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW)
                     
+                    with st.expander("Click here to compare the job ad with the selected SOL occupation"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.subheader("MCF Job Ad")
+                            st.markdown(f'##### {job_ad["job_title"]}')
+                            st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
+                        with col2:
+                            if data.selected_rows:
+                                selected_job =data.selected_rows[0]['Most Similar SOL Occupation']
+                                sol_detailed_df_filt = sol_detailed_df[sol_detailed_df['SOL Occupation'] == selected_job]
+                                st.subheader("Selected SOL description")
+                                st.markdown(f'##### {sol_detailed_df_filt.iloc[0]["SOL Occupation"]}')
+                                st.markdown(sol_detailed_df_filt.iloc[0]['Task and Duties'])
+                            else:
+                                st.info("Please select a SOL occupation from the table above")
                 else: 
-                    st.markdown(f'The MCF Job Ad {job_ad["job_title"]} is **disimilar** to all the occupations on the SOL.')
+                    st.markdown(f'The job ad {job_ad["job_title"]} is **disimilar** to all the occupations on the SOL.')
 
-                with st.expander("Click here to compare the job ad with the selected SOL occupation"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.subheader("MCF Job Ad")
-                        st.markdown(f'##### {job_ad["job_title"]}')
-                        st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
-                    with col2:
-                        if data.selected_rows:
-                            selected_job =data.selected_rows[0]['Most Similar SOL Occupation']
-                            sol_detailed_df_filt = sol_detailed_df[sol_detailed_df['SOL Occupation'] == selected_job]
-                            st.subheader("Selected SOL description")
-                            st.markdown(f'##### {sol_detailed_df_filt.iloc[0]["SOL Occupation"]}')
-                            st.markdown(sol_detailed_df_filt.iloc[0]['Task and Duties'])
-                        else:
-                            st.info("Please select a SOL occupation from the table above")
-                    
                                     
             # output as a filtered list
             with second_tab:
