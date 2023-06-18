@@ -134,24 +134,21 @@ def main():
 
                                     
             # output as a filtered list
-            with second_tab:
-                value = st.slider("Select a value", 0.0, 1.0, 0.05)
-                
-                if value: 
-                    st.dataframe(result_df[result_df['Combined similarity']>value])
+            with second_tab: 
+                st.dataframe(result_df[result_df['Combined similarity']>value])
 
-                    col1, col2 = st.columns(2)
+                col1, col2 = st.columns(2)
 
-                    with col1:
-                        st.subheader("MCF Job Ad")
-                        st.markdown(f'##### {job_ad["job_title"]}')
-                        st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
+                with col1:
+                    st.subheader("MCF Job Ad")
+                    st.markdown(f'##### {job_ad["job_title"]}')
+                    st.markdown(job_ad['job_desc'], unsafe_allow_html=True)
 
-                    with col2:
-                        st.subheader("Most Similar SOL Occupation")
-                        top1_SOL_ref_title = result_df["SOL Occupation"].iloc[0]
-                        st.markdown(f'##### {top1_SOL_ref_title}')
-                        st.markdown(sol_detailed_df[sol_detailed_df['SOL Occupation'] == top1_SOL_ref_title].iloc[0]['Task and Duties'])
+                with col2:
+                    st.subheader("Most Similar SOL Occupation")
+                    top1_SOL_ref_title = result_df["SOL Occupation"].iloc[0]
+                    st.markdown(f'##### {top1_SOL_ref_title}')
+                    st.markdown(sol_detailed_df[sol_detailed_df['SOL Occupation'] == top1_SOL_ref_title].iloc[0]['Task and Duties'])
                     
         else:
             st.error("Error occurred during API call.")
