@@ -93,13 +93,14 @@ def main():
             
             with main_tab:
                 
-                similarity_threshold = 0.6
+                similarity_threshold = 0.6 # To be determined if optimal or not
                 st.subheader("Similarity Results")
                 if any(result_df['Combined similarity'] > similarity_threshold):
-                    st.markdown(f'The job ad {job_ad["job_title"]} is **similar** to one of the occupations on the SOL.')
+                    st.markdown(f'The job ad {job_ad["job_title"]} is <span style="color:green">**similar**</span> to one of the occupations on the SOL.', unsafe_allow_html=True)
                     st.markdown('SOL Occupations that are most similar:')
                     # select the columns you want the users to see
-                    filt_df = pd.DataFrame({'Ranking': range(1,4), 'Most Similar SOL Occupation':result_df['SOL Occupation'][0:3]})
+                    filt_df_temp = result_df[result_df['Combined similarity'] > similarity_threshold]
+                    filt_df = pd.DataFrame({'Ranking': range(1, filt_df_temp['SOL Occupation'].size+1) , 'Most Similar SOL Occupation':filt_df_temp['SOL Occupation']})
                     
                     gb = GridOptionsBuilder.from_dataframe(filt_df)
                     # configure selection
@@ -130,7 +131,7 @@ def main():
                             else:
                                 st.info("Please select a SOL occupation from the table above")
                 else: 
-                    st.markdown(f'The job ad {job_ad["job_title"]} is **disimilar** to all the occupations on the SOL.')
+                    st.markdown(f'The job ad {job_ad["job_title"]} is <span style="color:red">**disimilar**</span> to all the occupations on the SOL.', unsafe_allow_html=True)
 
                                     
             # output as a filtered list
