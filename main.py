@@ -235,19 +235,32 @@ def prediction(query: PredictionQuery):
     return output
 
 @app.get('/embeddings', tags = ["Autocoder Embeddings"])
-def prediction(id: str = Query(title = "Job Ad ID"  ,
+def prediction(
+    query_type: str = Query(title = "Query Type", 
+                            description = "Choose `text` to pass in the job title and job description, `id` to pass in the MyCareersFuture job ad ID"),
+    job_title: str = Query(title = "Job Title",
+                           default = None,
+                           description = "Enter the job title from the job ad. Only works if `query_type` is `text`."),
+    job_desc: str = Query(title = "Job Description",
+                          default = None,
+                          description = "Enter the job description from the job ad, preferably with the HTML intact. Only works if `query_type` is `text`."),
+    id: str = Query(title = "Job Ad ID",
                                default = None,
                                description = "Enter the job ad ID from the MyCareersFuture job ad. Only works if `query_type` is `id`.")):
     
+    logger.query(f"{query_type}|{job_title}|{job_desc}|{id}")
+    
     # Timer for the overall prediction API
     start_time = time.time()
-
-    logger.query(f"{id}")
     
-    # Call the function to convert the job ad ID to the UUID
-    mcf_uuid = api.convert_to_uuid(id, input_type = "id")
+    if query_type == "text":
+        job_id = None
+    
+    else:
+        # Call the function to convert the job ad ID to the UUID
+        mcf_uuid = api.convert_to_uuid(id, input_type = "id")
 
-    job_id, job_title, job_desc = api.call_mcf_api(mcf_uuid)
+        job_id, job_title, job_desc = api.call_mcf_api(mcf_uuid)
 
     logger.info(f'TIMING | MCF job API call: {(time.time() - start_time):.2f}s')
 
@@ -264,19 +277,33 @@ def prediction(id: str = Query(title = "Job Ad ID"  ,
     return output
 
 @app.get('/sentence_embeddings', tags = ["Autocoder Sentence Embeddings"])
-def prediction(id: str = Query(title = "Job Ad ID"  ,
+def prediction(
+    query_type: str = Query(title = "Query Type", 
+                            description = "Choose `text` to pass in the job title and job description, `id` to pass in the MyCareersFuture job ad ID"),
+    job_title: str = Query(title = "Job Title",
+                           default = None,
+                           description = "Enter the job title from the job ad. Only works if `query_type` is `text`."),
+    job_desc: str = Query(title = "Job Description",
+                          default = None,
+                          description = "Enter the job description from the job ad, preferably with the HTML intact. Only works if `query_type` is `text`."),
+    id: str = Query(title = "Job Ad ID"  ,
                                default = None,
                                description = "Enter the job ad ID from the MyCareersFuture job ad. Only works if `query_type` is `id`.")):
     
+    logger.query(f"{query_type}|{job_title}|{job_desc}|{id}")
+
     # Timer for the overall prediction API
     start_time = time.time()
 
-    logger.query(f"{id}")
+    if query_type == "text":
+        job_id = None
     
-    # Call the function to convert the job ad ID to the UUID
-    mcf_uuid = api.convert_to_uuid(id, input_type = "id")
+    else:
 
-    job_id, job_title, job_desc = api.call_mcf_api(mcf_uuid)
+        # Call the function to convert the job ad ID to the UUID
+        mcf_uuid = api.convert_to_uuid(id, input_type = "id")
+
+        job_id, job_title, job_desc = api.call_mcf_api(mcf_uuid)
 
     logger.info(f'TIMING | MCF job API call: {(time.time() - start_time):.2f}s')
 
