@@ -50,7 +50,7 @@ def model_predict(model,
     # tokenizer = DistilBertTokenizer.from_pretrained(tokenizer_filepath)
 
     # Reading in the SSOC-index encoding
-    encoding = model_training.import_ssoc_idx_encoding(ssoc_idx_encoding_filepath)
+    encoding = sagemaker_model_training.import_ssoc_idx_encoding(ssoc_idx_encoding_filepath)
 
     # Generate prediction
     prediction = generate_single_prediction(model, tokenizer, tensor, None, ssoc_prediction_parameters["SSOC_5D"]["top_n"], encoding)
