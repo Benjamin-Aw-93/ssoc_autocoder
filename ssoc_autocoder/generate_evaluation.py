@@ -1,8 +1,9 @@
 import pandas as pd
 
 #takes in a df
-def generate(df):
 
+#calling this function generates everything you need
+def generate(df):
     #this prints the 1D to 5D accuracy
     for n in range(1, 6):
         similarity_percentage = calculate_similarity_percentage(df['pred1'], df['SSOC'], n)
