@@ -101,8 +101,8 @@ Phase 2: Deployment (ongoing)
      ![image](https://github.com/Benjamin-Aw-93/ssoc_autocoder/assets/66168700/a98d74e3-ffe6-4d3b-afae-804658a21be6)
 
 
-### 3) Experiments done between July 2023 - August 2023
-  * Using ChatGPT-3 generated job ads (
+### 3) August 2023: Experiments done between July 2023 to August 2023
+  * Using ChatGPT-3 generated job ads 
   * Tested using XGBoost
   * Ran model training with more epochs
 
