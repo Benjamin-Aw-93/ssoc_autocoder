@@ -69,3 +69,16 @@ Phase 2: Deployment (ongoing)
   * Understand how and why the model is predicting specific SSOCs
   * Fairness assessment of the types of JDs and the respective error rates
  
+
+
+
+
+
+## Documentations links
+
+> **Quick links below:**  
+> See [Model Architecture]([https://app.clickup.com/3825139/v/l/s/43633588](https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/Model%20Architecture.md)) 
+> See [Using GPT3 to generate job ads]([https://drive.google.com/drive/u/1/folders/1a4zV5ILczikQnraScjXRwi2XCNEQtfwA](https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/Generating%20jobs%20with%20GPT-3.md)) 
+> See [July 2023 - August 2023 Experiment Results]([https://project-finch.signin.aws.amazon.com/console](https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/August%20experiments.md)https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/August%20experiments.md) 
+
+ 
