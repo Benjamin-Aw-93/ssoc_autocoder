@@ -72,7 +72,7 @@ Phase 2: Deployment (ongoing)
 
 ## Technical Documentations
 
-### 1) Key changes made to model architecture and parameters in July 2023
+### 1) July 2023: Key changes made to model architecture and parameters
   * Learning rate reduced from 0.005 to 0.001
   * Language model component seperated from hidden layers
     * Embeddings done seperately before training
@@ -81,8 +81,28 @@ Phase 2: Deployment (ongoing)
    * Model accuracy improved from 49.9% to >80%
    * Duration for one epoch reduced from 4 hours/epoch to 10 minutes/epoch
 
-### 2) Experiments done between July 2023 - August 2023
-  * Using ChatGPT-3 generated job ads
+### 2) July 2023: Generating job ads with GPT-3 (ChatGPT)
+  * To explore ways of generating more training data
+  * Prompts example below:
+      1) General Prompt: 
+      Prompts: 5 distinct job posting that matches &lt;ssoc's definition of the job&gt;. Please use different verbs or add in additional relevant duties. 
+       
+      2) If there are similar jobs (hairstylist and barber): 
+      Prompts: There is a difference between this 2 jobs &lt;barber and hairstyling SSOC definition&gt; . Generate 5 job postings for each job, feel free to use different verbs, make it distinct 
+        
+      3) Follow-up prompts: 
+      Prompts : It is not unique enough. Make it more distinct.
+
+  * Jobs created
+    * SSOC 1D (Class 4): 186
+    * SSOC 1D (Class 5): 140
+    * SSOC 1D (Class 8): 229
+
+     ![image](https://github.com/Benjamin-Aw-93/ssoc_autocoder/assets/66168700/a98d74e3-ffe6-4d3b-afae-804658a21be6)
+
+
+### 3) Experiments done between July 2023 - August 2023
+  * Using ChatGPT-3 generated job ads (
   * Tested using XGBoost
   * Ran model training with more epochs
 
