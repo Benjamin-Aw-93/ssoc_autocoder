@@ -80,5 +80,6 @@ Phase 2: Deployment (ongoing)
     * Embeddings is retrieved from S3 bucket during training
  
 * Model Architecture Diagram
-  ![Uploading image.png…]()
+<img width="710" alt="image" src="https://github.com/Benjamin-Aw-93/ssoc_autocoder/assets/66168700/4f58f3d2-6841-41d1-8e91-05666d461995">
+
 
