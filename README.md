@@ -68,3 +68,17 @@ Phase 2: Deployment (ongoing)
 * Interpretability and fairness
   * Understand how and why the model is predicting specific SSOCs
   * Fairness assessment of the types of JDs and the respective error rates
+ 
+
+## Technical Documentations
+
+* Key changes made to model architecture and parameters in July 2023
+  * Learning rate reduced from 0.003 to 0.001
+  * Language model component seperated from hidden layers
+    * Embeddings done seperately before training
+    * Embeddings are stored in S3 bucket
+    * Embeddings is retrieved from S3 bucket during training
+ 
+* Model Architecture Diagram
+  ![Uploading image.png…]()
+
