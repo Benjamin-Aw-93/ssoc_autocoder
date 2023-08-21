@@ -3,7 +3,8 @@ import pandas as pd
 #takes in a df
 
 #calling this function generates everything you need
-def generate(df):
+# let n be min number of samples to be considered for weighted accuracy
+def generate(df, n):
     #this prints the 1D to 5D accuracy
     for n in range(1, 6):
         similarity_percentage = calculate_similarity_percentage(df['pred1'], df['SSOC'], n)
@@ -12,13 +13,10 @@ def generate(df):
 
     top_5_accuracy(df)
     # get weighted accuracy
-    print(weighted_accuracy(df))
+    print(weighted_accuracy(df, n))
 
     #get precision and recall of selected SSOCs
     selected_ssocs_metrics()
-    
-
-
 
 def calculate_similarity_percentage(s1, s2, n):
     s1_str = s1.astype(str)
@@ -62,19 +60,22 @@ def top_5_accuracy(df):
 
 
 
-def weighted_accuracy(df):
-    unique_classes = df['SSOC'].unique()
-    class_accuracies={}
-    for class_label in unique_classes:
-        correct_predictions = ((df['SSOC']==class_label) & (df['pred1']==class_label)).sum()
-        total_instances =  (df['SSOC']==class_label).sum()
-        class_accuracy = correct_predictions / total_instances if total_instances>0 else 0
-        class_accuracies[class_label] = class_accuracy    
+def weighted_accuracy(df, n):
+    list_of_ssocs = df['SSOC'].unique().tolist()
+    list_of_ssocs.sort()
+    total = len(list_of_ssocs)
 
-    weighted_accuracy = sum(class_accuracy*(df['SSOC'].value_counts()[class_label]/len(df))
-                                            for class_label, class_accuracy in class_accuracies.items())
+    df['correct'] = df['SSOC'] == df['pred1']
+    ssoc_counts = df['SSOC'].value_counts()
+    valid_ssocs = ssoc_counts[ssoc_counts > n]
+    ssoc_accuracies = df.groupby('SSOC')['correct'].mean()
+    valid_ssoc_accuracies = ssoc_accuracies[valid_ssocs.index]
+    print("Weighted Accuracy of SSOC predictions:")
+    weighted = sum(valid_ssoc_accuracies) / len(valid_ssoc_accuracies)
+
     
-    return weighted_accuracy
+    return round(weighted,4)
+
 
 def selected_ssocs_metrics(df):
     ssoc_value_counts = df['SSOC'].value_counts()
@@ -99,4 +100,3 @@ def selected_ssocs_metrics(df):
         precision_values[ssoc] = round(precision,2)
         
     print(precision_values)
-
