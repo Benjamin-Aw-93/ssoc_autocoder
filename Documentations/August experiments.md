@@ -10,3 +10,10 @@
 | Hierachical Classifier 	| With GenAI 	|     100    	|     93.91%    	|     92.15%    	|     90.42%    	|     88.44%    	|     84.50%    	|     93.70%    	|     96.23%    	|
 |  XGBoost max_depth = 3 	|  W/O GenAI 	|      -     	|     89.03%    	|     85.88%    	|     83.46%    	|     82.04%    	|     79.69%    	|     91.38%    	|     93.88%    	|
 | XGBoost max_depth = 60 	|  W/O GenAI 	|      -     	|     90.93%    	|     88.62%    	|     86.51%    	|     84.57%    	|     82.32%    	|     92.49%    	|     94.78%    	|
+
+
+  * Tested different language models
+|     Model     	| Accuracy 	|
+|:-------------:	|:--------:	|
+| RoBERTa Large 	|    50%   	|
+|   DistilBERT  	|  82.31%  	|
