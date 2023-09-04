@@ -71,7 +71,8 @@ if __name__ == "__main__":
     # lang_model = AutoModel.from_pretrained(lang_model_path)
     # tokenizer = DistilBertTokenizer.from_pretrained(tokenizer_path)
 
-    language_models = {'DistilBERT':[DistilBertTokenizer.from_pretrained('./artifacts/distilbert-tokenizer-pretrained-7epoch'),DistilBertModel.from_pretrained('./artifacts/basemodel')],
+
+    language_models = { 'DistilBERT':[DistilBertTokenizer.from_pretrained('./artifacts/distilbert-tokenizer-pretrained-7epoch'),DistilBertModel.from_pretrained('./artifacts/basemodel')],
                        'RoBERTa-base':[RobertaTokenizer.from_pretrained('roberta-base'),RobertaModel.from_pretrained('roberta-base')]
                        }
 
@@ -82,18 +83,16 @@ if __name__ == "__main__":
     title = train['job_title']
     text = train['job_description']
 
-
     # chooose from DistilBERT, RoBERTa, etc
-    selected = 'RoBERTa-base'
-
-    model = language_models[selected][1]
-    tokenizer = language_models[selected][0]
 
 
-    title_embeddings, text_embeddings = generate_embeddings(model, tokenizer, title, text)
+    for selected in language_models.keys():
+        # for selected in language_models:
+        model = language_models[selected][1]
+        tokenizer = language_models[selected][0]
+        title_embeddings, text_embeddings = generate_embeddings(model, tokenizer, title, text)
+        print(text_embeddings)
 
-    print(title_embeddings)
-    
 
 
     # save the embeddings
