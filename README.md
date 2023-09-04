@@ -68,3 +68,20 @@ Phase 2: Deployment (ongoing)
 * Interpretability and fairness
   * Understand how and why the model is predicting specific SSOCs
   * Fairness assessment of the types of JDs and the respective error rates
+ 
+
+
+
+
+
+## Documentations links
+
+> **Quick links below:**  
+
+> See [Model Architecture](https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/Model%20Architecture.md) <br>
+> See [Using GPT3 to generate job ads](https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/Generating%20jobs%20with%20GPT-3.md) <br>
+> See [July 2023 - August 2023 Experiment Results](https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/August%20experiments.md)  <br>
+> See [Naming Convention of train/test data and how to retrieve the embeddings](https://github.com/Benjamin-Aw-93/ssoc_autocoder/blob/ys/Documentations/Data%20and%20Embeddings.md) 
+
+
+ 
