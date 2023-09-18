@@ -1,56 +1,190 @@
-import datetime
-import torch
+"""
+SSOCAutoCoder Module
+
+This module contains the `SSOCAutoCoder` class which facilitates automatic coding using embeddings generated from text.
+The class provides functionality to build, predict, and save the model.
+
+Example Usage:
+
+from ssoc_autocoder.combined_model import SSOCAutoCoder
+SSOC = SSOCAutoCoder()
+SSOC.build(
+    model_name="test",
+    embedding_model_path="Models/language_model",
+    tokenizer_path="Models/distilbert-tokenizer-pretrained-7epoch",
+    full_classifier_path="Models/230829_1231h_full_logreg.pkl",
+    title_classifier_path="Models/230827_2252h_title_logreg.pkl"
+)
+SSOC.predict(title="software engineer", description="build fullstack applications")
+SSOC.predict_lite(title="software engineer")
+"""
+
 import numpy as np
+import pandas as pd
+import json
+import torch
+from transformers import AutoConfig, AutoModel, AutoTokenizer
+from sklearn.base import BaseEstimator
+from typing import Union
+import pickle
+from datetime import datetime
 
-class CombinedModel:
-    def __init__(self, model1, model2, model1_name, model2_name):
-        """
-        :param model1: The PyTorch model that generates embeddings for a given text.
-        :param model2: The sklearn classifier model.
-        :param model1_name: Name of the first model.
-        :param model2_name: Name of the second model.
-        """
-        self.embedding_model = model1
-        self.classifier_model = model2
-        self.model_names = (model1_name, model2_name)
-        self.creation_date = datetime.datetime.now().strftime('%Y-%m-%d')
+class SSOCAutoCoder:
+    """
+    The SSOCAutoCoder class provides automatic coding based on embeddings generated from text.
+    
+    Attributes:
+        - embedding_model: The model used for generating embeddings.
+        - tokenizer: Tokenizer for processing text.
+        - full_classifier: Classifier for generating predictions based on full text (title + description).
+        - title_classifier: Classifier for generating predictions based on title only.
+        - name: A name assigned to the model for identification purposes.
+        - framework: Framework used, e.g., 'pytorch'.
 
-    def top_predictions(self, text):
-        """
-        Returns the top 5 predictions and their probabilities for the input text.
-        
-        :param text: The input text to be processed.
-        :return: Dictionary containing top 5 predictions and their probabilities.
-        """
-        embedding_numpy = self._get_embedding(text)
-        probabilities = self.classifier_model.predict_proba(embedding_numpy)[0]
-        
-        # Get top 5 prediction indices
-        top_indices = np.argsort(probabilities)[-5:][::-1]
-        
-        # Convert indices to class labels
-        top_classes = self.classifier_model.classes_[top_indices]
-        
-        # Get corresponding probabilities
-        top_probabilities = probabilities[top_indices]
-        
-        return dict(zip(top_classes, top_probabilities))
+    Methods:
+        - build(): Constructs the autocoder model.
+        - predict(): Uses the full_classifier to predict a code based on a given title and description.
+        - predict_lite(): Uses the title_classifier to predict a code based on a given title.
+        - save(): Saves the autocoder state to a file.
+    """
+    
+    def __init__(self):
+        # Initializations for the auto-coder
+        self.embedding_model = None
+        self.tokenizer = None
+        self.full_classifier = None
+        self.title_classifier = None
+        self.name = None
+        self.framework = None
 
-    def _get_embedding(self, text):
-        input_tensor = self.text_to_tensor(text)
-        self.embedding_model.eval()
-        with torch.no_grad():
-            embedding = self.embedding_model(input_tensor)
-        return embedding.cpu().numpy()
-
-    def text_to_tensor(self, text):
+    def build(self,
+              model_name: str,
+              embedding_model_path: str,
+              tokenizer_path: str,
+              full_classifier_path: str,
+              title_classifier_path: str):
         """
-        Convert text to tensor for PyTorch model input. You may need to implement this.
+        Build the SSOCAutoCoder with the necessary models and tokenizers.
+        """
+        # Loading the necessary models and classifiers
+        self.embedding_model = self._load_embedding_model(embedding_model_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+        self.full_classifier = self._load_embedding_classifier(full_classifier_path)
+        self.title_classifier = self._load_embedding_classifier(title_classifier_path)
+        self.name = model_name
+
+        # Framework identification logic
+        if isinstance(self.embedding_model, AutoModel) or isinstance(self.embedding_model, torch.nn.Module):
+            self.framework = 'pytorch'
+        else:
+            raise ValueError("EmbeddingModel should be a Hugging Face transformer model or PyTorch.")
+
+        # Validation for classifier methods
+        for classifier in [self.full_classifier, self.title_classifier]:
+            if not (callable(getattr(classifier, 'predict', None)) and callable(getattr(classifier, 'predict_proba', None))):
+                raise ValueError("Each EmbeddingClassifier must support 'predict' and 'predict_proba' methods.")
+            if not hasattr(classifier, 'classes_'):
+                raise ValueError("Each EmbeddingClassifier must have the 'classes_' attribute.")
+                
+    def _load_embedding_model(self, embedding_model_path: str):
+        """
+        Helper method to load the embedding model.
+        """
+        try:
+            model = AutoModel.from_pretrained(embedding_model_path)
+            return model
+        except Exception as e:
+            raise ValueError(f"Error loading the embedding model: {str(e)}")
+
+    def _load_embedding_classifier(self, path_or_obj):
+        """
+        Helper method to load the embedding classifier.
+        """
+        try:
+            with open(path_or_obj, 'rb') as file:
+                return pickle.load(file)
+        except ModuleNotFoundError as e:
+            missing_module = str(e).split("'")[1]
+            raise ImportError(f"Module '{missing_module}' not found. Please ensure you have installed the necessary package to load the EmbeddingClassifier.") from e
+        except Exception as e:
+            raise ValueError(f"Error loading the embedding classifier: {str(e)}")
+            
+    def _generate_embeddings(self, text_data: np.array, use_gpu: bool = False) -> pd.DataFrame:
+        """
+        Generate embeddings for the given text_data using the embedding model.
         
-        :param text: The input text.
-        :return: Tensor representation of the text.
-        """
-        pass
+        Args:
+        - text_data (np.array): Array of text entries for which embeddings are to be generated.
+        - use_gpu (bool): If True, will try to use GPU for generating embeddings.
 
-# Example usage:
-# Assuming you've loaded model
+        Returns:
+        - pd.DataFrame: DataFrame of generated embeddings.
+        """
+        embeddings = np.array([])
+        for text in text_data:
+            # Tokenization
+            text = self.tokenizer(text, return_tensors="pt", padding=True)
+            with torch.no_grad():
+                if use_gpu and torch.cuda.is_available():
+                    self.embedding_model.to('cuda')
+                    text = {key: val.to('cuda') for key, val in text.items()}
+                    embeddings_np = self.embedding_model(**text).last_hidden_state.mean(dim=1).cpu().numpy().flatten()
+                    embeddings = np.concatenate([embeddings, embeddings_np], axis=0)
+                else:
+                    embeddings_np = self.embedding_model(**text).last_hidden_state.mean(dim=1).numpy().flatten()
+                    embeddings = np.concatenate([embeddings, embeddings_np], axis=0)
+
+        # Convert to DataFrame
+        embedding_cols = [f"e{i}" for i in range(len(embeddings))]
+        embeddings_df = pd.DataFrame(embeddings).transpose()
+        embeddings_df.columns = embedding_cols
+        return embeddings_df
+
+    def _get_top_n_predictions(self, embeddings: np.array, classifier, top_n: int) -> dict:
+        """
+        Retrieve the top N predictions and their probabilities.
+        """
+        # Check if classifier is from scikit-learn
+        if isinstance(classifier, BaseEstimator):
+            if embeddings.shape[1] != classifier.n_features_in_:
+                raise ValueError(f"Embedding dimensions ({embeddings.shape[1]}) do not match classifier expected input dimensions ({classifier.n_features_in_}).")
+        # Extract probabilities
+        probabilities = classifier.predict_proba(embeddings)
+        top_indices = np.argsort(-probabilities, axis=1)[:, :top_n]
+        top_predictions = np.array([classifier.classes_[i] for i in top_indices])
+        top_probabilities = np.array([[probabilities[j, i] for i in indices] for j, indices in enumerate(top_indices)])
+        
+        return {
+            "prediction": top_predictions.tolist(),
+            "confidence": top_probabilities.tolist()
+        }
+    
+    def predict(self, title: str, description:str, top_n: int = 1, use_gpu: bool = False) -> dict:
+        """
+        Make predictions using the full_classifier based on title and description.
+        """
+        text_data = np.array([title, description])
+        return self._base_predict(text_data, self.full_classifier, top_n, use_gpu)
+
+    def predict_lite(self, title: str, top_n: int = 1, use_gpu: bool = False) -> dict:
+        """
+        Make predictions using the title_classifier based on title.
+        """
+        return self._base_predict(np.array([title]), self.title_classifier, top_n, use_gpu)
+
+    def _base_predict(self, text_data: np.array, classifier, top_n: int, use_gpu: bool) -> dict:
+        """
+        Base method to generate embeddings and make predictions.
+        """
+        embeddings = self._generate_embeddings(text_data, use_gpu)
+        return self._get_top_n_predictions(embeddings, classifier, top_n)
+        
+    def save(self, 
+             file_name: str):
+        """
+        Save the SSOCAutoCoder as a pickle file.
+        """
+        self._pickled_time = str(datetime.now())
+
+        with open(file_name, 'wb') as file:
+            pickle.dump(self, file)
