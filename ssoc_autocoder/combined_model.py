@@ -17,6 +17,19 @@ SSOC.build(
 )
 SSOC.predict(title="software engineer", description="build fullstack applications")
 SSOC.predict_lite(title="software engineer")
+
+
+SSOC2 = SSOCAutoCoder()
+SSOC2.build(
+    model_name="test",
+    full_classifier_path="Models/bge-base-en_w_jd_log_reg_pipeline.pkl",
+    title_classifier_path="Models/bge-base-en_log_reg_pipeline.pkl",
+    hugging_face_model_name = "BAAI/bge-base-en",
+    from_hugging_face = True
+)
+SSOC2.predict(title="software engineer", description="build fullstack applications")
+SSOC2.predict_lite(title="software engineer")
+
 """
 
 import numpy as np
@@ -59,16 +72,22 @@ class SSOCAutoCoder:
 
     def build(self,
               model_name: str,
-              embedding_model_path: str,
-              tokenizer_path: str,
               full_classifier_path: str,
-              title_classifier_path: str):
+              title_classifier_path: str,
+              embedding_model_path: str = None,
+              tokenizer_path: str = None,
+              hugging_face_model_name: str = None,
+              from_hugging_face: bool = False):
         """
         Build the SSOCAutoCoder with the necessary models and tokenizers.
         """
         # Loading the necessary models and classifiers
-        self.embedding_model = self._load_embedding_model(embedding_model_path)
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+        if from_hugging_face:
+            self.embedding_model = self._load_embedding_model_from_hugging_face(hugging_face_model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(hugging_face_model_name)
+        else:
+            self.embedding_model = self._load_embedding_model(embedding_model_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         self.full_classifier = self._load_embedding_classifier(full_classifier_path)
         self.title_classifier = self._load_embedding_classifier(title_classifier_path)
         self.name = model_name
@@ -85,7 +104,17 @@ class SSOCAutoCoder:
                 raise ValueError("Each EmbeddingClassifier must support 'predict' and 'predict_proba' methods.")
             if not hasattr(classifier, 'classes_'):
                 raise ValueError("Each EmbeddingClassifier must have the 'classes_' attribute.")
-                
+
+    def _load_embedding_model_from_hugging_face(self, hugging_face_model_name: str):
+        """
+        Helper method to load the embedding model directly from Hugging Face.
+        """
+        try:
+            model = AutoModel.from_pretrained(hugging_face_model_name)
+            return model
+        except Exception as e:
+            raise ValueError(f"Error loading the embedding model from Hugging Face: {str(e)}")
+
     def _load_embedding_model(self, embedding_model_path: str):
         """
         Helper method to load the embedding model.
