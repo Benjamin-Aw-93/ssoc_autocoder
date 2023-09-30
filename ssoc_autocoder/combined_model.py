@@ -19,6 +19,7 @@ SSOC.predict(title="software engineer", description="build fullstack application
 SSOC.predict_lite(title="software engineer")
 
 
+from ssoc_autocoder.combined_model import SSOCAutoCoder
 SSOC2 = SSOCAutoCoder()
 SSOC2.build(
     model_name="test",
@@ -93,6 +94,12 @@ class SSOCAutoCoder:
         self.title_classifier = self._load_embedding_classifier(title_classifier_path)
         self.name = model_name
 
+        # After loading the embedding model, set the MAX_TOKEN_LENGTH
+        try:
+            self.MAX_TOKEN_LENGTH = self.embedding_model.config.max_position_embeddings
+        except AttributeError:
+            self.MAX_TOKEN_LENGTH = 512
+
         # Framework identification logic
         if isinstance(self.embedding_model, AutoModel) or isinstance(self.embedding_model, torch.nn.Module):
             self.framework = 'pytorch'
@@ -138,7 +145,18 @@ class SSOCAutoCoder:
             raise ImportError(f"Module '{missing_module}' not found. Please ensure you have installed the necessary package to load the EmbeddingClassifier.") from e
         except Exception as e:
             raise ValueError(f"Error loading the embedding classifier: {str(e)}")
-            
+        
+    def _truncate_text(self, text: str) -> str:
+        """
+        Truncate the text to fit within the MAX_TOKEN_LENGTH when tokenized.
+        """
+        tokens = self.tokenizer.tokenize(text)
+        if len(tokens) > self.MAX_TOKEN_LENGTH:
+            tokens = tokens[:self.MAX_TOKEN_LENGTH]
+            truncated_text = self.tokenizer.convert_tokens_to_string(tokens)
+            return truncated_text
+        return text
+                
     def _generate_embeddings(self, text_data: np.array, use_gpu: bool = False) -> pd.DataFrame:
         """
         Generate embeddings for the given text_data using the embedding model.
@@ -152,6 +170,10 @@ class SSOCAutoCoder:
         """
         embeddings = np.array([])
         for text in text_data:
+
+            # Truncate text if it exceeds limit
+            text = self._truncate_text(text)
+
             # Tokenization
             text = self.tokenizer(text, return_tensors="pt", padding=True)
             with torch.no_grad():
