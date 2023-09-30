@@ -1,6 +1,8 @@
-# Workflow for Model Embedding, Training, and Deployment
+# Workflow for Generating Embeddings, Training Embedding Classifer, Building SSOCAutoCoder and Deploying SSOCAutoCoder
 
 This repository contains a structured workflow that encompasses the generation of embeddings, training of a classifier, and the deployment of the combined model.
+
+`SSOCAutoCoder` consists of the `EmbeddingModel` and `EmbeddingClassifer`
 
 ## Structure:
 
