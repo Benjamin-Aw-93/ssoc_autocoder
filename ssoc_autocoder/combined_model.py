@@ -29,6 +29,7 @@ SSOC2.build(
 )
 SSOC2.predict(title="software engineer", description="build fullstack applications")
 SSOC2.predict_lite(title="software engineer")
+SSOC2.save("Models/autocoder.pkl")
 
 """
 
@@ -177,15 +178,16 @@ class SSOCAutoCoder:
         if isinstance(classifier, BaseEstimator):
             if embeddings.shape[1] != classifier.n_features_in_:
                 raise ValueError(f"Embedding dimensions ({embeddings.shape[1]}) do not match classifier expected input dimensions ({classifier.n_features_in_}).")
+
         # Extract probabilities
         probabilities = classifier.predict_proba(embeddings)
         top_indices = np.argsort(-probabilities, axis=1)[:, :top_n]
-        top_predictions = np.array([classifier.classes_[i] for i in top_indices])
-        top_probabilities = np.array([[probabilities[j, i] for i in indices] for j, indices in enumerate(top_indices)])
+        top_predictions = [classifier.classes_[i] for i in top_indices.ravel()]
+        top_probabilities = [probabilities[0, i] for i in top_indices.ravel()]
         
         return {
-            "prediction": top_predictions.tolist(),
-            "confidence": top_probabilities.tolist()
+            "prediction": list(map(str, top_predictions)),
+            "confidence": list(map(str, top_probabilities))
         }
     
     def predict(self, title: str, description:str, top_n: int = 1, use_gpu: bool = False) -> dict:
