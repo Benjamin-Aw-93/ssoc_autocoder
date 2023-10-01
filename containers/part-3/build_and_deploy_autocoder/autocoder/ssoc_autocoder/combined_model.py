@@ -186,11 +186,11 @@ class SSOCAutoCoder:
                     embeddings_np = self.embedding_model(**text).last_hidden_state.mean(dim=1).numpy().flatten()
                     embeddings = np.concatenate([embeddings, embeddings_np], axis=0)
 
-        # Convert to DataFrame
-        embedding_cols = [f"e{i}" for i in range(len(embeddings))]
-        embeddings_df = pd.DataFrame(embeddings).transpose()
-        embeddings_df.columns = embedding_cols
-        return embeddings_df
+        # # Convert to DataFrame
+        # embedding_cols = [f"e{i}" for i in range(len(embeddings))]
+        # embeddings_df = pd.DataFrame(embeddings).transpose()
+        # embeddings_df.columns = embedding_cols
+        return embeddings
 
     def _get_top_n_predictions(self, embeddings: np.array, classifier, top_n: int) -> dict:
         """
@@ -198,11 +198,11 @@ class SSOCAutoCoder:
         """
         # Check if classifier is from scikit-learn
         if isinstance(classifier, BaseEstimator):
-            if embeddings.shape[1] != classifier.n_features_in_:
+            if len(embeddings) != classifier.n_features_in_:
                 raise ValueError(f"Embedding dimensions ({embeddings.shape[1]}) do not match classifier expected input dimensions ({classifier.n_features_in_}).")
 
         # Extract probabilities
-        probabilities = classifier.predict_proba(embeddings)
+        probabilities = classifier.predict_proba(embeddings.reshape(1, -1))
         top_indices = np.argsort(-probabilities, axis=1)[:, :top_n]
         top_predictions = [classifier.classes_[i] for i in top_indices.ravel()]
         top_probabilities = [probabilities[0, i] for i in top_indices.ravel()]
