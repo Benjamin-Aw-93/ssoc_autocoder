@@ -244,8 +244,10 @@ class SSOCAutoCoder:
         # Extract probabilities
         probabilities = classifier.predict_proba(embeddings)
         top_indices = np.argsort(-probabilities, axis=1)[:, :top_n]
-        top_predictions = [[classifier.classes_[i] for i in row] for row in top_indices]
-        top_probabilities = [[probabilities[j, i] for i in row] for j, row in enumerate(top_indices)]
+        
+        # Convert top predictions and probabilities to Python native types for JSON serialization
+        top_predictions = [[classifier.classes_[i].item() if isinstance(classifier.classes_[i], np.integer) else classifier.classes_[i] for i in row] for row in top_indices]
+        top_probabilities = [[prob.item() if isinstance(prob, np.floating) else prob for prob in probabilities[j, row]] for j, row in enumerate(top_indices)]        
         
         return {
             "prediction": top_predictions,
