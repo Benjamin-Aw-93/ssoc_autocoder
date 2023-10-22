@@ -1,11 +1,10 @@
 """
 SSOCAutoCoder Module
 
-This module contains the `SSOCAutoCoder` class which facilitates automatic coding using embeddings generated from text.
+This module contains the `SSOCAutoCoder` class which facilitates automatic SSOC labelling using embeddings generated from text.
 The class provides functionality to build, predict, and save the model.
 
-Example Usage:
-
+Example Usage #1:
 from ssoc_autocoder.combined_model import SSOCAutoCoder
 SSOC = SSOCAutoCoder()
 SSOC.build(
@@ -15,22 +14,23 @@ SSOC.build(
     full_classifier_path="Models/230829_1231h_full_logreg.pkl",
     title_classifier_path="Models/230827_2252h_title_logreg.pkl"
 )
-SSOC.predict(title="software engineer", description="build fullstack applications")
-SSOC.predict_lite(title="software engineer")
+SSOC.predict(titles=["software engineer", "data scientist", "machine learning engineer"], descriptions=["build fullstack applications", "builds dashboards", "builds AI models"], top_n=3)
+SSOC.predict_lite(titles=["software engineer", "data scientist", "machine learning engineer"], top_n=3)
 
 
+Example Usage #2:
 from ssoc_autocoder.combined_model import SSOCAutoCoder
-SSOC2 = SSOCAutoCoder()
-SSOC2.build(
+SSOC = SSOCAutoCoder()
+SSOC.build(
     model_name="test",
     full_classifier_path="Models/bge-base-en_w_jd_log_reg_pipeline.pkl",
     title_classifier_path="Models/bge-base-en_log_reg_pipeline.pkl",
     hugging_face_model_name = "BAAI/bge-base-en",
     from_hugging_face = True
 )
-SSOC2.predict(title="software engineer", description="build fullstack applications")
-SSOC2.predict_lite(title="software engineer")
-SSOC2.save("Models/autocoder.pkl")
+SSOC.predict(titles=["software engineer", "data scientist", "machine learning engineer"], descriptions=["build fullstack applications", "builds dashboards", "builds AI models"], top_n=3)
+SSOC.predict_lite(titles=["software engineer", "data scientist", "machine learning engineer"], top_n=3)
+SSOC.save("Models/autocoder.pkl")
 
 """
 
@@ -72,6 +72,21 @@ class SSOCAutoCoder:
         self.name = None
         self.framework = None
 
+    def _check_classifier_validity(self, classifier):
+        """
+        Check if the classifier has the necessary attributes and methods.
+        """
+        required_methods = ['predict', 'predict_proba']
+        required_attributes = ['classes_', 'n_features_in_']
+
+        for method in required_methods:
+            if not callable(getattr(classifier, method, None)):
+                raise ValueError(f"Classifier must have a callable '{method}' method.")
+
+        for attribute in required_attributes:
+            if not hasattr(classifier, attribute):
+                raise ValueError(f"Classifier must have the '{attribute}' attribute.")
+
     def build(self,
               model_name: str,
               full_classifier_path: str,
@@ -90,8 +105,13 @@ class SSOCAutoCoder:
         else:
             self.embedding_model = self._load_embedding_model(embedding_model_path)
             self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+       
         self.full_classifier = self._load_embedding_classifier(full_classifier_path)
+        self._check_classifier_validity(self.full_classifier)
+        
         self.title_classifier = self._load_embedding_classifier(title_classifier_path)
+        self._check_classifier_validity(self.title_classifier)
+        
         self.name = model_name
 
         # After loading the embedding model, set the MAX_TOKEN_LENGTH
@@ -157,81 +177,103 @@ class SSOCAutoCoder:
             return truncated_text
         return text
                 
-    def _generate_embeddings(self, text_data: np.array, use_gpu: bool = False) -> pd.DataFrame:
+    def _generate_embeddings(self, text_data: list, task: str, use_gpu: bool = False) -> np.array:
         """
         Generate embeddings for the given text_data using the embedding model.
         
         Args:
-        - text_data (np.array): Array of text entries for which embeddings are to be generated.
+        - text_data (list): List of text entries for which embeddings are to be generated.
         - use_gpu (bool): If True, will try to use GPU for generating embeddings.
 
         Returns:
-        - pd.DataFrame: DataFrame of generated embeddings.
+        - np.array: Array of generated embeddings.
         """
-        embeddings = np.array([])
-        for text in text_data:
+        embeddings = []
 
-            # Truncate text if it exceeds limit
-            text = self._truncate_text(text)
+        if task == "full":
+            for text_pair in text_data:
+                title = text_pair[0]
+                description = text_pair[1]
 
-            # Tokenization
-            text = self.tokenizer(text, return_tensors="pt", padding=True)
-            with torch.no_grad():
-                if use_gpu and torch.cuda.is_available():
-                    self.embedding_model.to('cuda')
-                    text = {key: val.to('cuda') for key, val in text.items()}
-                    embeddings_np = self.embedding_model(**text).last_hidden_state.mean(dim=1).cpu().numpy().flatten()
-                    embeddings = np.concatenate([embeddings, embeddings_np], axis=0)
-                else:
-                    embeddings_np = self.embedding_model(**text).last_hidden_state.mean(dim=1).numpy().flatten()
-                    embeddings = np.concatenate([embeddings, embeddings_np], axis=0)
+                # Truncate text if it exceeds limit
+                title = self._truncate_text(title)
+                description = self._truncate_text(description)
 
-        # # Convert to DataFrame
-        # embedding_cols = [f"e{i}" for i in range(len(embeddings))]
-        # embeddings_df = pd.DataFrame(embeddings).transpose()
-        # embeddings_df.columns = embedding_cols
-        return embeddings
+                # Get embeddings
+                embeddings_pair = np.concatenate([self._get_embedding(title, use_gpu), self._get_embedding(description, use_gpu)])
+                embeddings.append(embeddings_pair)
+
+        elif task == "title_only":
+            for text in text_data:
+                # Truncate text if it exceeds limit
+                text = self._truncate_text(text)
+                # Get embeddings
+                embeddings.append(self._get_embedding(text, use_gpu))
+
+        return np.array(embeddings)
+
+    def _get_embedding(self, text: str, use_gpu: bool) -> np.array:
+        """
+        Generate embedding for a single text entry.
+
+        Args:
+        - text (str): Text entry for which embedding is to be generated.
+        - use_gpu (bool): If True, will try to use GPU for generating embeddings.
+
+        Returns:
+        - np.array: Generated embedding.
+        """
+        # Tokenization
+        text = self.tokenizer(text, return_tensors="pt", padding=True)
+        with torch.no_grad():
+            if use_gpu and torch.cuda.is_available():
+                self.embedding_model.to('cuda')
+                text = {key: val.to('cuda') for key, val in text.items()}
+                embedding = self.embedding_model(**text).last_hidden_state.mean(dim=1).cpu().numpy().flatten()
+            else:
+                embedding = self.embedding_model(**text).last_hidden_state.mean(dim=1).numpy().flatten()
+        return embedding
 
     def _get_top_n_predictions(self, embeddings: np.array, classifier, top_n: int) -> dict:
         """
         Retrieve the top N predictions and their probabilities.
-        """
-        # Check if classifier is from scikit-learn
-        if isinstance(classifier, BaseEstimator):
-            if len(embeddings) != classifier.n_features_in_:
-                raise ValueError(f"Embedding dimensions ({embeddings.shape[1]}) do not match classifier expected input dimensions ({classifier.n_features_in_}).")
+        """        
+        if embeddings.shape[1] != classifier.n_features_in_:
+            raise ValueError(f"Embedding dimensions ({embeddings.shape[1]}) do not match classifier expected input dimensions ({classifier.n_features_in_}).")
 
         # Extract probabilities
-        probabilities = classifier.predict_proba(embeddings.reshape(1, -1))
+        probabilities = classifier.predict_proba(embeddings)
         top_indices = np.argsort(-probabilities, axis=1)[:, :top_n]
-        top_predictions = [classifier.classes_[i] for i in top_indices.ravel()]
-        top_probabilities = [probabilities[0, i] for i in top_indices.ravel()]
+        top_predictions = [[classifier.classes_[i] for i in row] for row in top_indices]
+        top_probabilities = [[probabilities[j, i] for i in row] for j, row in enumerate(top_indices)]
         
         return {
-            "prediction": list(map(str, top_predictions)),
-            "confidence": list(map(str, top_probabilities))
+            "prediction": top_predictions,
+            "confidence": top_probabilities
         }
-    
-    def predict(self, title: str, description:str, top_n: int = 1, use_gpu: bool = False) -> dict:
+            
+    def predict(self, titles: list, descriptions: list, top_n: int = 1, use_gpu: bool = False) -> dict:
         """
-        Make predictions using the full_classifier based on title and description.
+        Make predictions using the full_classifier based on titles and descriptions.
         """
-        text_data = np.array([title, description])
-        return self._base_predict(text_data, self.full_classifier, top_n, use_gpu)
+        if len(titles) != len(descriptions):
+            raise ValueError("The number of titles must match the number of descriptions.")
+        text_data = [[title, description] for title, description in zip(titles, descriptions)]
+        return self._base_predict(text_data, "full" ,self.full_classifier, top_n, use_gpu)
 
-    def predict_lite(self, title: str, top_n: int = 1, use_gpu: bool = False) -> dict:
+    def predict_lite(self, titles: list, top_n: int = 1, use_gpu: bool = False) -> dict:
         """
-        Make predictions using the title_classifier based on title.
+        Make predictions using the title_classifier based on titles.
         """
-        return self._base_predict(np.array([title]), self.title_classifier, top_n, use_gpu)
+        return self._base_predict(titles, "title_only", self.title_classifier, top_n, use_gpu)
 
-    def _base_predict(self, text_data: np.array, classifier, top_n: int, use_gpu: bool) -> dict:
+    def _base_predict(self, text_data: list, task: str, classifier, top_n: int, use_gpu: bool) -> dict:
         """
         Base method to generate embeddings and make predictions.
         """
-        embeddings = self._generate_embeddings(text_data, use_gpu)
+        embeddings = self._generate_embeddings(text_data, task, use_gpu)
         return self._get_top_n_predictions(embeddings, classifier, top_n)
-        
+                
     def save(self, 
              file_name: str):
         """
