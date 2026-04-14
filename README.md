@@ -19,6 +19,7 @@ React SPA  -->  Heroku CORS Proxy  -->  AWS API Gateway  -->  FastAPI / Lambda
 | `Deployments/` | Backend API, frontend React app, Lambda functions, data processing scripts |
 | `Notebooks/` | Jupyter notebooks for exploration, analysis, and development |
 | `Tests/` | Unit and integration tests |
+| `artifacts/` | Extracted model artifacts — see [`artifacts/bge_ssoc_classifier/`](artifacts/bge_ssoc_classifier/README.md) for BGE classifier head + scaler (base encoder pulled from [`BAAI/bge-large-en-v1.5`](https://huggingface.co/BAAI/bge-large-en-v1.5)) |
 
 ## Quick Start
 
